@@ -67,7 +67,7 @@ jobs:
         run: npm run tauri -- build --bundles appimage
 
       - name: Upload AppImage artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: md-appimage-ci
           path: src-tauri/target/release/bundle/appimage/*.AppImage
