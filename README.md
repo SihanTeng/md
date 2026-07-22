@@ -72,9 +72,9 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-Then open **Actions → Release installers**. Each matrix job uploads artifacts; on tags they also attach to a **draft GitHub Release**.
+Then open **Actions → Release**. Each matrix job uploads artifacts; on tags they also attach to a **draft GitHub Release**.
 
-**Manual run (no tag):** GitHub → Actions → **Release installers** → **Run workflow**. Download artifacts from the run summary.
+**Manual run (no tag):** GitHub → Actions → **Release** → **Run workflow**. Download artifacts from the run summary.
 
 Artifact layout after a successful run:
 

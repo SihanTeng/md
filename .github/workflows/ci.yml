@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
           cache: npm
       - run: npm ci
       - run: npm run build
@@ -38,7 +38,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
           cache: npm
 
       - uses: dtolnay/rust-toolchain@stable
@@ -59,7 +59,9 @@ jobs:
             libayatana-appindicator3-dev \
             libxdo-dev \
             file \
-            wget
+            wget \
+            linuxdeploy \
+            linuxdeploy-plugin-appimage
 
       - run: npm ci
 
