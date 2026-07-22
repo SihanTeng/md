@@ -1,7 +1,7 @@
 {
   "name": "md",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -14,7 +14,8 @@
     "build:msi": "bash scripts/build-installers.sh windows",
     "build:installers:list": "bash scripts/build-installers.sh --list",
     "build:installers:help": "bash scripts/build-installers.sh --all-hint",
-    "icons": "python3 scripts/generate-icon.py"
+    "icons": "python3 scripts/generate-icon.py",
+    "version": "bash scripts/bump-version.sh"
   },
   "dependencies": {
     "@remotion/player": "^4.0.496",
