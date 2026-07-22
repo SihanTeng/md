@@ -7,7 +7,8 @@
 # Notes:
 #   - Each OS builds only its own bundle type (Tauri cannot cross-compile these).
 #   - Artifacts always upload to the workflow run.
-#   - On tags, assets are also attached to a draft GitHub Release.
+#   - Assets are attached to a published GitHub Release.
+#     Tag runs use the pushed tag; manual runs use v<app-version>.
 #   - Code signing is optional — set secrets when ready (see comments below).
 
 name: Release
@@ -103,7 +104,7 @@ jobs:
       # https://v2.tauri.app/distribute/sign/windows/
 
       - name: Build installers (Tauri)
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -116,8 +117,8 @@ jobs:
           projectPath: .
           tauriScript: npm run tauri
           args: ${{ matrix.args }}
-          tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
-          releaseName: ${{ startsWith(github.ref, 'refs/tags/') && format('md {0}', github.ref_name) || '' }}
+          tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'v__VERSION__' }}
+          releaseName: ${{ startsWith(github.ref, 'refs/tags/') && format('md {0}', github.ref_name) || 'md v__VERSION__' }}
           releaseBody: |
             ## md installers
 
@@ -133,7 +134,7 @@ jobs:
             - **macOS**: open the DMG and drag **md** to Applications. Unsigned builds may need System Settings → Privacy & Security → Open Anyway.
             - **Linux**: `chmod +x md_*.AppImage && ./md_*.AppImage`
             - **Windows**: run the MSI installer (WebView2 bootstrapper downloads if needed).
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           includeDebug: false
 

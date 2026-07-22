@@ -1,179 +1,41 @@
 # md
 
-A cross-platform markdown **viewer and editor** built with **Tauri 2**, **React**, **TypeScript**, **Tailwind CSS**, **TipTap** (WYSIWYG), and **Remotion** (present mode + welcome polish).
+`md` is a desktop Markdown viewer and editor for macOS, Linux, and Windows. It keeps documents as portable `.md` files while offering visual editing, native file controls, and a presentation mode built from your headings.
 
-Native OS window chrome is kept everywhere; the interior UI is styled like a modern macOS document app on Mac, Linux, and Windows.
+## What makes md different
 
-## Features
+`md` combines a focused document editor with tools for navigating and presenting the same file:
 
-- WYSIWYG markdown editing (headings, lists, tasks, links, code, quotes)
-- Open / Save / Save As with dirty state and recent files
-- Document outline sidebar
-- Light / dark theme (system-aware)
-- **Present mode** — slides derived from H1/H2 headings via Remotion Player
-- Welcome animation on empty state
-- Native File / Edit / View menus with keyboard shortcuts
+- **Visual Markdown editing**: format headings, lists, tasks, links, quotes, and code without editing Markdown syntax
+- **Presentation mode**: turn level-one and level-two headings into slides without maintaining a separate deck
+- **Native file workflow**: open, save, save as, and reopen recent documents through desktop menus and shortcuts
+- **Document navigation**: jump between sections from an outline generated from the current document
+- **System-aware appearance**: follow the system theme or select light or dark mode
+- **Compact desktop packaging**: use the operating system’s web view instead of bundling a browser engine
 
-## Prerequisites
+## Install md
 
-- [Node.js](https://nodejs.org/) 20+
-- [Rust](https://www.rust-lang.org/) stable
-- Platform deps for Tauri: [Prerequisites](https://v2.tauri.app/start/prerequisites/)
+Download the package for your operating system from the [latest md release](https://github.com/SihanTeng/md/releases/latest).
 
-### Linux (example)
+### Install on macOS
 
-```bash
-sudo apt update
-sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file \
-  libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf
-```
+Download the universal `.dmg`, open it, and drag **md** into **Applications**. The universal build supports Apple silicon and Intel Macs running macOS 10.15 or later.
 
-### Windows (MSI)
+If macOS blocks an unsigned build, open **System Settings → Privacy & Security** and select **Open Anyway**.
 
-- [Visual Studio C++ build tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
-- [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/) (bundler can download the bootstrapper)
-- [WiX Toolset v3](https://wixtoolset.org/) on `PATH` for `.msi` packaging
+### Install on Linux
 
-### macOS (DMG)
-
-- Xcode Command Line Tools
-- For universal DMGs: both Rust targets installed
+Download the 64-bit Intel or AMD `.AppImage`. Make it executable, then run it:
 
 ```bash
-rustup target add aarch64-apple-darwin x86_64-apple-darwin
+chmod +x md_*.AppImage
+./md_*.AppImage
 ```
 
-## Build installers
+You can move the AppImage to any directory after downloading it.
 
-Configured bundle targets in `src-tauri/tauri.conf.json`:
+### Install on Windows
 
-| Platform | Package | Bundle id |
-|----------|---------|-----------|
-| macOS | **DMG** | `dmg` |
-| Linux | **AppImage** | `appimage` |
-| Windows | **MSI** | `msi` |
+Download the `.msi` package and run it. The installer downloads the Microsoft Edge WebView2 runtime when Windows doesn’t already include it.
 
-Tauri **cannot cross-compile** these packages. Each installer must be built on its host OS (or via CI).
-
-### GitHub Actions (all three platforms)
-
-Workflows live under `.github/workflows/`:
-
-| Workflow | When | What |
-|----------|------|------|
-| `release.yml` | Tag `v*` or manual dispatch | DMG + AppImage + MSI matrix |
-| `ci.yml` | PRs / pushes to main | Frontend build + Linux AppImage smoke |
-
-**Release all installers from a version tag:**
-
-```bash
-# Bump version in package.json and src-tauri/tauri.conf.json first if needed
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-Then open **Actions → Release**. Each matrix job uploads artifacts; on tags they also attach to a **draft GitHub Release**.
-
-**Manual run (no tag):** GitHub → Actions → **Release** → **Run workflow**. Download artifacts from the run summary.
-
-Artifact layout after a successful run:
-
-- `md-macos-<n>` → `*.dmg`
-- `md-linux-<n>` → `*.AppImage`
-- `md-windows-<n>` → `*.msi`
-
-### Local (current OS only)
-
-```bash
-# Detect host and build the matching package
-npm run build:installers
-
-# Or explicitly:
-npm run build:appimage   # Linux → AppImage
-npm run build:dmg        # macOS → DMG
-npm run build:msi        # Windows → MSI
-
-# List outputs from the last build
-npm run build:installers:list
-
-# How to get all three packages
-npm run build:installers:help
-```
-
-Equivalent shell entrypoint:
-
-```bash
-./scripts/build-installers.sh
-./scripts/build-installers.sh linux
-./scripts/build-installers.sh --list
-```
-
-Typical output paths:
-
-```
-src-tauri/target/release/bundle/appimage/*.AppImage
-src-tauri/target/release/bundle/msi/*.msi
-src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
-# (or …/release/bundle/dmg/*.dmg for single-arch mac builds)
-```
-
-Linux AppImage requires `linuxdeploy` and `linuxdeploy-plugin-appimage`:
-
-```bash
-sudo apt-get install -y linuxdeploy linuxdeploy-plugin-appimage
-```
-
-Typical output paths:
-
-```
-src-tauri/target/release/bundle/appimage/md_0.1.0_amd64.AppImage
-src-tauri/target/release/bundle/msi/*.msi
-src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
-# (or …/release/bundle/dmg/*.dmg for single-arch mac builds)
-```
-
-### Unsigned installs
-
-- **macOS**: System Settings → Privacy & Security → Open Anyway (until notarized).
-- **Windows**: SmartScreen may warn until the MSI is signed.
-- **Linux**: `chmod +x md_*.AppImage && ./md_*.AppImage`
-
-### Code signing (optional)
-
-Wire secrets into `release.yml` when ready:
-
-- macOS: [Signing macOS applications](https://v2.tauri.app/distribute/sign/macos/)
-- Windows: [Windows code signing](https://v2.tauri.app/distribute/sign/windows/)
-
-## Icons
-
-```bash
-npm run icons   # regenerates PNG/ICO/ICNS via scripts/generate-icon.py
-```
-
-## Shortcuts
-
-| Action | macOS | Linux / Windows |
-|--------|-------|-----------------|
-| New | ⌘N | Ctrl+N |
-| Open | ⌘O | Ctrl+O |
-| Save | ⌘S | Ctrl+S |
-| Save As | ⌘⇧S | Ctrl+Shift+S |
-| Present | ⌘⇧P | Ctrl+Shift+P |
-
-In Present mode: ← / → / Space to navigate, Esc to exit.
-
-## Stack
-
-| Layer | Tech |
-|-------|------|
-| Shell | Tauri 2 |
-| UI | React 19, Tailwind 4, lucide-react |
-| Editor | TipTap 3 |
-| Markdown I/O | marked + Turndown |
-| Present / motion | Remotion Player |
-| Backend | Rust (fs, dialog, menu, recent files) |
-
-## License
-
-MIT
+If Microsoft Defender SmartScreen warns about an unsigned build, review the publisher information before continuing.
