@@ -16,6 +16,10 @@ interface Props {
   onClose: () => void;
 }
 
+// The player is paused during presentation, so land past the slide's enter
+// spring (~50 frames at 30fps) instead of on frame 0, where opacity is 0.
+const SETTLED_FRAME = 60;
+
 export function PresentOverlay({ editor, onClose }: Props) {
   const theme = useDocumentStore((s) => s.theme);
   const dark = resolveDark(theme);
@@ -28,7 +32,7 @@ export function PresentOverlay({ editor, onClose }: Props) {
     (i: number) => {
       const next = Math.max(0, Math.min(slides.length - 1, i));
       setIndex(next);
-      player?.seekTo(next * FRAMES_PER_SLIDE);
+      player?.seekTo(next * FRAMES_PER_SLIDE + SETTLED_FRAME);
     },
     [player, slides.length],
   );
@@ -100,6 +104,7 @@ export function PresentOverlay({ editor, onClose }: Props) {
             compositionWidth={1280}
             compositionHeight={720}
             fps={30}
+            initialFrame={SETTLED_FRAME}
             style={{ width: '100%', height: '100%' }}
             controls={false}
             autoPlay={false}
