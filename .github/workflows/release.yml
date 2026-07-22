@@ -136,7 +136,6 @@ jobs:
             - **Windows**: run the MSI installer (WebView2 bootstrapper downloads if needed).
           releaseDraft: false
           prerelease: false
-          includeDebug: false
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7

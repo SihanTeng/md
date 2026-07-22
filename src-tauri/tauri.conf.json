@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "identifier": "com.md.app",
   "build": {
-    "beforeDevCommand": "npm run dev",
+    "beforeDevCommand": "npm run dev:web",
     "devUrl": "http://localhost:1520",
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
