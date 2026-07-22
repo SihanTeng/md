@@ -1,3 +1,4 @@
+import { openHref } from '../lib/openHref';
 import { useDocumentStore } from '../stores/documentStore';
 
 export function StatusBar() {
@@ -15,10 +16,19 @@ export function StatusBar() {
       <div className="flex min-w-0 items-center gap-2 truncate">
         {error ? (
           <span className="truncate text-[var(--color-danger)]">{error}</span>
+        ) : path ? (
+          <button
+            type="button"
+            className="truncate rounded-sm hover:text-[var(--color-ink-secondary)] hover:underline"
+            title={`Ctrl+click to reveal in file manager: ${path}`}
+            onClick={(e) => {
+              if (e.ctrlKey || e.metaKey) void openHref(path);
+            }}
+          >
+            {path}
+          </button>
         ) : (
-          <span className="truncate" title={path ?? undefined}>
-            {path ?? 'Unsaved document'}
-          </span>
+          <span className="truncate">Unsaved document</span>
         )}
         {dirty && !error ? (
           <span className="shrink-0 text-[var(--color-ink-secondary)]">Edited</span>

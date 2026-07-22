@@ -1,6 +1,7 @@
 import { type Editor, EditorContent, useEditor } from '@tiptap/react';
 import { useEffect, useRef } from 'react';
 import { htmlToMarkdown } from '../../lib/markdown/io';
+import { filePathAt, openHref } from '../../lib/openHref';
 import { buildOutline } from '../../lib/outline';
 import { useDocumentStore } from '../../stores/documentStore';
 import { createExtensions } from './extensions';
@@ -24,6 +25,30 @@ export function MarkdownEditor({ initialHtml, onReady }: Props) {
       attributes: {
         class: 'md-prose focus:outline-none',
         spellcheck: 'true',
+      },
+      handleDOMEvents: {
+        click: (view, event) => {
+          const href = (event.target as HTMLElement).closest('a')?.getAttribute('href');
+          if (href) {
+            // Never let the webview follow the link itself; open externally
+            // only via Ctrl/Cmd+click. Plain clicks stay reserved for editing.
+            event.preventDefault();
+            if (!(event.ctrlKey || event.metaKey)) return false;
+            void openHref(href);
+            return true;
+          }
+          // Plain text that looks like a file path: Ctrl/Cmd+click reveals it
+          if (!(event.ctrlKey || event.metaKey)) return false;
+          const pos = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos;
+          if (pos == null) return false;
+          const $pos = view.state.doc.resolve(pos);
+          if (!$pos.parent.isTextblock) return false;
+          const path = filePathAt($pos.parent.textContent, pos - $pos.start());
+          if (!path) return false;
+          event.preventDefault();
+          void openHref(path);
+          return true;
+        },
       },
     },
     onUpdate: ({ editor: ed }) => {
