@@ -39,7 +39,7 @@ jobs:
             platform_key: macos
 
           - name: Linux AppImage
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             args: --bundles appimage
             artifact_path: src-tauri/target/release/bundle/appimage/*.AppImage
             platform_key: linux
@@ -94,6 +94,23 @@ jobs:
 
       - name: Install frontend dependencies
         run: npm ci
+
+      - name: Install Linux dependencies (including linuxdeploy)
+        if: matrix.platform_key == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            libxdo-dev \
+            file \
+            wget \
+            linuxdeploy \
+            linuxdeploy-plugin-appimage
 
       # Optional macOS signing / notarization — set repo secrets when ready:
       #   APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY,
