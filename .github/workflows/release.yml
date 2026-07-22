@@ -10,7 +10,7 @@
 #   - On tags, assets are also attached to a draft GitHub Release.
 #   - Code signing is optional — set secrets when ready (see comments below).
 
-name: Release installers
+name: Release
 
 on:
   push:
