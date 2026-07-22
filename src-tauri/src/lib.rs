@@ -17,9 +17,7 @@ pub struct RecentFile {
 }
 
 fn config_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    app.path()
-        .app_config_dir()
-        .map_err(|e| e.to_string())
+    app.path().app_config_dir().map_err(|e| e.to_string())
 }
 
 fn recent_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -57,8 +55,7 @@ fn write_text_file(path: String, contents: String) -> Result<(), String> {
         Ok(()) => Ok(()),
         Err(_) => {
             let _ = fs::remove_file(&tmp);
-            fs::write(&path, contents.as_bytes())
-                .map_err(|e| format!("Failed to save file: {e}"))
+            fs::write(&path, contents.as_bytes()).map_err(|e| format!("Failed to save file: {e}"))
         }
     }
 }
@@ -105,8 +102,13 @@ fn build_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let new = MenuItem::with_id(app, "file_new", "New", true, Some("CmdOrCtrl+N"))?;
     let open = MenuItem::with_id(app, "file_open", "Open…", true, Some("CmdOrCtrl+O"))?;
     let save = MenuItem::with_id(app, "file_save", "Save", true, Some("CmdOrCtrl+S"))?;
-    let save_as =
-        MenuItem::with_id(app, "file_save_as", "Save As…", true, Some("CmdOrCtrl+Shift+S"))?;
+    let save_as = MenuItem::with_id(
+        app,
+        "file_save_as",
+        "Save As…",
+        true,
+        Some("CmdOrCtrl+Shift+S"),
+    )?;
     let sep = PredefinedMenuItem::separator(app)?;
     let quit = PredefinedMenuItem::quit(app, Some("Quit"))?;
 
@@ -117,8 +119,13 @@ fn build_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         &[&new, &open, &sep, &save, &save_as, &sep, &quit],
     )?;
 
-    let present =
-        MenuItem::with_id(app, "view_present", "Present", true, Some("CmdOrCtrl+Shift+P"))?;
+    let present = MenuItem::with_id(
+        app,
+        "view_present",
+        "Present",
+        true,
+        Some("CmdOrCtrl+Shift+P"),
+    )?;
     let view_menu = Submenu::with_items(app, "View", true, &[&present])?;
 
     let edit_menu = Submenu::with_items(

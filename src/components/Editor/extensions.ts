@@ -1,10 +1,10 @@
-import StarterKit from "@tiptap/starter-kit";
-import Link from "@tiptap/extension-link";
-import Placeholder from "@tiptap/extension-placeholder";
-import TaskList from "@tiptap/extension-task-list";
-import TaskItem from "@tiptap/extension-task-item";
-import Underline from "@tiptap/extension-underline";
-import CharacterCount from "@tiptap/extension-character-count";
+import CharacterCount from '@tiptap/extension-character-count';
+import Link from '@tiptap/extension-link';
+import Placeholder from '@tiptap/extension-placeholder';
+import TaskItem from '@tiptap/extension-task-item';
+import TaskList from '@tiptap/extension-task-list';
+import Underline from '@tiptap/extension-underline';
+import StarterKit from '@tiptap/starter-kit';
 
 export function createExtensions() {
   return [
@@ -12,7 +12,7 @@ export function createExtensions() {
       heading: { levels: [1, 2, 3] },
       codeBlock: {
         HTMLAttributes: {
-          class: "md-code-block",
+          class: 'md-code-block',
         },
       },
     }),
@@ -20,11 +20,11 @@ export function createExtensions() {
     Link.configure({
       openOnClick: false,
       HTMLAttributes: {
-        class: "md-link",
+        class: 'md-link',
       },
     }),
     Placeholder.configure({
-      placeholder: "Start writing…",
+      placeholder: 'Start writing…',
     }),
     TaskList,
     TaskItem.configure({

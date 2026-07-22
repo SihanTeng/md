@@ -1,6 +1,7 @@
-import { useCallback } from "react";
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import type { Editor } from "@tiptap/react";
+import { getCurrentWindow } from '@tauri-apps/api/window';
+import type { Editor } from '@tiptap/react';
+import { useCallback } from 'react';
+import { fileNameFromPath, htmlToMarkdown, markdownToHtml } from '../lib/markdown/io';
 import {
   clearRecent,
   listRecent,
@@ -9,9 +10,8 @@ import {
   pushRecent,
   readTextFile,
   writeTextFile,
-} from "../lib/tauri/files";
-import { fileNameFromPath, htmlToMarkdown, markdownToHtml } from "../lib/markdown/io";
-import { useDocumentStore } from "../stores/documentStore";
+} from '../lib/tauri/files';
+import { useDocumentStore } from '../stores/documentStore';
 
 async function setWindowTitle(title: string, dirty: boolean) {
   try {
@@ -35,6 +35,7 @@ export function useDocumentActions(editor: Editor | null) {
   const setRecent = useDocumentStore((s) => s.setRecent);
   const setError = useDocumentStore((s) => s.setError);
   const setPresentOpen = useDocumentStore((s) => s.setPresentOpen);
+  const setIsOpening = useDocumentStore((s) => s.setIsOpening);
   const loadDocument = useDocumentStore((s) => s.loadDocument);
 
   const refreshRecent = useCallback(async () => {
@@ -66,44 +67,50 @@ export function useDocumentActions(editor: Editor | null) {
 
   const newDocument = useCallback(async () => {
     if (dirty) {
-      const ok = window.confirm("Discard unsaved changes?");
+      const ok = window.confirm('Discard unsaved changes?');
       if (!ok) return;
     }
     loadDocument({
-      title: "Untitled",
-      markdown: "",
-      html: "<p></p>",
+      title: 'Untitled',
+      markdown: '',
+      html: '<p></p>',
       path: null,
     });
     setError(null);
-    await setWindowTitle("Untitled", false);
+    await setWindowTitle('Untitled', false);
   }, [dirty, loadDocument, setError]);
 
   const openDocument = useCallback(async () => {
     if (dirty) {
-      const ok = window.confirm("Discard unsaved changes?");
+      const ok = window.confirm('Discard unsaved changes?');
       if (!ok) return;
     }
+    if (useDocumentStore.getState().isOpening) return;
     try {
+      setIsOpening(true);
       const filePath = await pickOpenPath();
-      if (!filePath) return;
+      if (!filePath) {
+        setIsOpening(false);
+        return;
+      }
       await loadFromPath(filePath);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setIsOpening(false);
     }
-  }, [dirty, loadFromPath, setError]);
+  }, [dirty, loadFromPath, setError, setIsOpening]);
 
   const saveDocument = useCallback(async () => {
     try {
       setError(null);
-      const md =
-        editor != null ? htmlToMarkdown(editor.getHTML()) : contentMarkdown;
+      const md = editor != null ? htmlToMarkdown(editor.getHTML()) : contentMarkdown;
       let dest = path;
       if (!dest) {
-        dest = await pickSavePath(`${title.endsWith(".md") ? title : `${title}.md`}`);
+        dest = await pickSavePath(`${title.endsWith('.md') ? title : `${title}.md`}`);
         if (!dest) return;
       }
-      await writeTextFile(dest, md.endsWith("\n") ? md : `${md}\n`);
+      await writeTextFile(dest, md.endsWith('\n') ? md : `${md}\n`);
       const name = fileNameFromPath(dest);
       setPath(dest);
       setTitle(name);
@@ -133,13 +140,10 @@ export function useDocumentActions(editor: Editor | null) {
   const saveDocumentAs = useCallback(async () => {
     try {
       setError(null);
-      const md =
-        editor != null ? htmlToMarkdown(editor.getHTML()) : contentMarkdown;
-      const dest = await pickSavePath(
-        path ?? `${title.endsWith(".md") ? title : `${title}.md`}`,
-      );
+      const md = editor != null ? htmlToMarkdown(editor.getHTML()) : contentMarkdown;
+      const dest = await pickSavePath(path ?? `${title.endsWith('.md') ? title : `${title}.md`}`);
       if (!dest) return;
-      await writeTextFile(dest, md.endsWith("\n") ? md : `${md}\n`);
+      await writeTextFile(dest, md.endsWith('\n') ? md : `${md}\n`);
       const name = fileNameFromPath(dest);
       setPath(dest);
       setTitle(name);
@@ -167,7 +171,7 @@ export function useDocumentActions(editor: Editor | null) {
   const openRecent = useCallback(
     async (filePath: string) => {
       if (dirty) {
-        const ok = window.confirm("Discard unsaved changes?");
+        const ok = window.confirm('Discard unsaved changes?');
         if (!ok) return;
       }
       await loadFromPath(filePath);

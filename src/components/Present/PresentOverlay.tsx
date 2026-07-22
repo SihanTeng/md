@@ -1,11 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
-import { Player } from "@remotion/player";
-import { X, ChevronLeft, ChevronRight } from "lucide-react";
-import type { Editor } from "@tiptap/react";
-import { SlideDeck, FRAMES_PER_SLIDE, slideDeckDuration } from "../../remotion/compositions/SlideDeck";
-import { slidesFromDoc } from "../../lib/slidesFromDoc";
-import { resolveDark } from "../../lib/theme";
-import { useDocumentStore } from "../../stores/documentStore";
+import { Player, type PlayerRef } from '@remotion/player';
+import type { Editor } from '@tiptap/react';
+import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { slidesFromDoc } from '../../lib/slidesFromDoc';
+import { resolveDark } from '../../lib/theme';
+import {
+  FRAMES_PER_SLIDE,
+  SlideDeck,
+  slideDeckDuration,
+} from '../../remotion/compositions/SlideDeck';
+import { useDocumentStore } from '../../stores/documentStore';
 
 interface Props {
   editor: Editor | null;
@@ -15,44 +19,41 @@ interface Props {
 export function PresentOverlay({ editor, onClose }: Props) {
   const theme = useDocumentStore((s) => s.theme);
   const dark = resolveDark(theme);
-  const slides = useMemo(
-    () => slidesFromDoc(editor?.getJSON() ?? null),
-    [editor],
-  );
+  const slides = useMemo(() => slidesFromDoc(editor?.getJSON() ?? null), [editor]);
   const durationInFrames = slideDeckDuration(slides.length);
   const [index, setIndex] = useState(0);
-  const [player, setPlayer] = useState<{
-    seekTo: (f: number) => void;
-  } | null>(null);
+  const [player, setPlayer] = useState<PlayerRef | null>(null);
 
-  const goTo = (i: number) => {
-    const next = Math.max(0, Math.min(slides.length - 1, i));
-    setIndex(next);
-    player?.seekTo(next * FRAMES_PER_SLIDE);
-  };
+  const goTo = useCallback(
+    (i: number) => {
+      const next = Math.max(0, Math.min(slides.length - 1, i));
+      setIndex(next);
+      player?.seekTo(next * FRAMES_PER_SLIDE);
+    },
+    [player, slides.length],
+  );
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
         onClose();
-      } else if (e.key === "ArrowRight" || e.key === " " || e.key === "PageDown") {
+      } else if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
         e.preventDefault();
         goTo(index + 1);
-      } else if (e.key === "ArrowLeft" || e.key === "PageUp") {
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
         e.preventDefault();
         goTo(index - 1);
       }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index, player, slides.length]);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [index, goTo, onClose]);
 
   return (
     <div
       className="fixed inset-0 z-50 flex flex-col"
-      style={{ background: dark ? "#000" : "#111" }}
+      style={{ background: dark ? '#000' : '#111' }}
       role="dialog"
       aria-modal="true"
       aria-label="Presentation"
@@ -92,16 +93,14 @@ export function PresentOverlay({ editor, onClose }: Props) {
       <div className="flex min-h-0 flex-1 items-center justify-center p-4">
         <div className="aspect-video w-full max-w-5xl overflow-hidden rounded-lg shadow-2xl">
           <Player
-            ref={(ref: any) => {
-              setPlayer(ref);
-            }}
+            ref={setPlayer}
             component={SlideDeck}
             inputProps={{ slides, dark: true }}
             durationInFrames={durationInFrames}
             compositionWidth={1280}
             compositionHeight={720}
             fps={30}
-            style={{ width: "100%", height: "100%" }}
+            style={{ width: '100%', height: '100%' }}
             controls={false}
             autoPlay={false}
             initiallyShowControls={false}
@@ -110,9 +109,7 @@ export function PresentOverlay({ editor, onClose }: Props) {
         </div>
       </div>
 
-      <div className="pb-3 text-center text-[11px] text-white/40">
-        ← → navigate · Esc exit
-      </div>
+      <div className="pb-3 text-center text-[11px] text-white/40">← → navigate · Esc exit</div>
     </div>
   );
 }

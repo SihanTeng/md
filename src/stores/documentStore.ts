@@ -1,6 +1,6 @@
-import { create } from "zustand";
+import { create } from 'zustand';
 
-export type ThemeMode = "system" | "light" | "dark";
+export type ThemeMode = 'system' | 'light' | 'dark';
 
 export interface OutlineItem {
   id: string;
@@ -30,6 +30,7 @@ interface DocumentState {
   presentOpen: boolean;
   sidebarOpen: boolean;
   error: string | null;
+  isOpening: boolean;
 
   setPath: (path: string | null) => void;
   setTitle: (title: string) => void;
@@ -43,6 +44,7 @@ interface DocumentState {
   setPresentOpen: (open: boolean) => void;
   setSidebarOpen: (open: boolean) => void;
   setError: (error: string | null) => void;
+  setIsOpening: (isOpening: boolean) => void;
   loadDocument: (opts: {
     title?: string;
     markdown?: string;
@@ -53,9 +55,9 @@ interface DocumentState {
 
 export const useDocumentStore = create<DocumentState>((set) => ({
   path: null,
-  title: "Untitled",
-  contentMarkdown: "",
-  contentHtml: "<p></p>",
+  title: 'Untitled',
+  contentMarkdown: '',
+  contentHtml: '<p></p>',
   revision: 0,
   dirty: false,
   hasDocument: false,
@@ -63,10 +65,11 @@ export const useDocumentStore = create<DocumentState>((set) => ({
   charCount: 0,
   outline: [],
   recent: [],
-  theme: "system",
+  theme: 'system',
   presentOpen: false,
   sidebarOpen: true,
   error: null,
+  isOpening: false,
 
   setPath: (path) => set({ path }),
   setTitle: (title) => set({ title }),
@@ -80,12 +83,13 @@ export const useDocumentStore = create<DocumentState>((set) => ({
   setPresentOpen: (presentOpen) => set({ presentOpen }),
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
   setError: (error) => set({ error }),
+  setIsOpening: (isOpening) => set({ isOpening }),
   loadDocument: (opts) =>
     set((s) => ({
       path: opts.path ?? null,
-      title: opts.title ?? "Untitled",
-      contentMarkdown: opts.markdown ?? "",
-      contentHtml: opts.html ?? "<p></p>",
+      title: opts.title ?? 'Untitled',
+      contentMarkdown: opts.markdown ?? '',
+      contentHtml: opts.html ?? '<p></p>',
       revision: s.revision + 1,
       dirty: false,
       hasDocument: true,

@@ -1,7 +1,7 @@
-import { FileText, Clock, ListTree } from "lucide-react";
-import { useDocumentStore } from "../stores/documentStore";
-import type { Editor } from "@tiptap/react";
-import { scrollToPos } from "../lib/outline";
+import type { Editor } from '@tiptap/react';
+import { Clock, FileText, ListTree } from 'lucide-react';
+import { scrollToPos } from '../lib/outline';
+import { useDocumentStore } from '../stores/documentStore';
 
 interface Props {
   editor: Editor | null;
@@ -20,7 +20,7 @@ export function Sidebar({ editor, onOpenRecent }: Props) {
   return (
     <aside
       className="flex h-full w-[var(--sidebar-width)] shrink-0 flex-col border-r border-[var(--color-hairline)] backdrop-blur-xl"
-      style={{ background: "var(--color-sidebar)" }}
+      style={{ background: 'var(--color-sidebar)' }}
     >
       <div className="px-3 pb-2 pt-3">
         <div className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--color-ink-tertiary)]">
@@ -30,9 +30,7 @@ export function Sidebar({ editor, onOpenRecent }: Props) {
           <FileText size={14} className="shrink-0 text-[var(--color-accent)]" strokeWidth={1.75} />
           <span className="truncate">
             {title}
-            {dirty ? (
-              <span className="ml-1 text-[var(--color-ink-tertiary)]">•</span>
-            ) : null}
+            {dirty ? <span className="ml-1 text-[var(--color-ink-tertiary)]">•</span> : null}
           </span>
         </div>
       </div>
@@ -99,9 +97,5 @@ function Section({
 }
 
 function EmptyHint({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="px-2 py-1 text-[12px] text-[var(--color-ink-tertiary)]">
-      {children}
-    </div>
-  );
+  return <div className="px-2 py-1 text-[12px] text-[var(--color-ink-tertiary)]">{children}</div>;
 }

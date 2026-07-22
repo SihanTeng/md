@@ -1,9 +1,9 @@
-import { useEditor, EditorContent, type Editor } from "@tiptap/react";
-import { useEffect, useRef } from "react";
-import { createExtensions } from "./extensions";
-import { htmlToMarkdown } from "../../lib/markdown/io";
-import { buildOutline } from "../../lib/outline";
-import { useDocumentStore } from "../../stores/documentStore";
+import { type Editor, EditorContent, useEditor } from '@tiptap/react';
+import { useEffect, useRef } from 'react';
+import { htmlToMarkdown } from '../../lib/markdown/io';
+import { buildOutline } from '../../lib/outline';
+import { useDocumentStore } from '../../stores/documentStore';
+import { createExtensions } from './extensions';
 
 interface Props {
   initialHtml: string;
@@ -19,11 +19,11 @@ export function MarkdownEditor({ initialHtml, onReady }: Props) {
 
   const editor = useEditor({
     extensions: createExtensions(),
-    content: initialHtml || "<p></p>",
+    content: initialHtml || '<p></p>',
     editorProps: {
       attributes: {
-        class: "md-prose focus:outline-none",
-        spellcheck: "true",
+        class: 'md-prose focus:outline-none',
+        spellcheck: 'true',
       },
     },
     onUpdate: ({ editor: ed }) => {
