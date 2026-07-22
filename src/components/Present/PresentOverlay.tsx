@@ -92,8 +92,8 @@ export function PresentOverlay({ editor, onClose }: Props) {
       <div className="flex min-h-0 flex-1 items-center justify-center p-4">
         <div className="aspect-video w-full max-w-5xl overflow-hidden rounded-lg shadow-2xl">
           <Player
-            ref={(ref: React.RefObject<any>) => {
-              if (ref) setPlayer(ref);
+            ref={(ref) => {
+              setPlayer(ref);
             }}
             component={SlideDeck}
             inputProps={{ slides, dark: true }}
