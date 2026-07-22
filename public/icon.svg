@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1C8CFF"/>
+      <stop offset="100%" stop-color="#0060E0"/>
+    </linearGradient>
+    <filter id="cardShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="#003C8A" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+  <!-- Squircle approximation -->
+  <rect x="2" y="2" width="124" height="124" rx="28" ry="28" fill="url(#bg)"/>
+  <!-- Document card -->
+  <rect x="26" y="22" width="76" height="84" rx="12" fill="#FCFCFE" fill-opacity="0.96" filter="url(#cardShadow)"/>
+  <!-- Monogram -->
+  <text x="64" y="72" text-anchor="middle"
+        font-family="Inter, -apple-system, BlinkMacSystemFont, system-ui, sans-serif"
+        font-size="40" font-weight="800" fill="#0066E6" letter-spacing="-1.5">md</text>
+  <!-- Rule lines under monogram -->
+  <rect x="40" y="84" width="48" height="2.5" rx="1.25" fill="#0064DC" fill-opacity="0.18"/>
+  <rect x="46" y="92" width="36" height="2" rx="1" fill="#0064DC" fill-opacity="0.12"/>
+</svg>

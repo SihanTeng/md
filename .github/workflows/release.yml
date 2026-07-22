@@ -1,0 +1,161 @@
+# Build installers for macOS (DMG), Linux (AppImage), and Windows (MSI).
+#
+# Triggers:
+#   - Push of a version tag: v0.1.0
+#   - Manual run from the Actions tab (workflow_dispatch)
+#
+# Notes:
+#   - Each OS builds only its own bundle type (Tauri cannot cross-compile these).
+#   - Artifacts always upload to the workflow run.
+#   - On tags, assets are also attached to a draft GitHub Release.
+#   - Code signing is optional — set secrets when ready (see comments below).
+
+name: Release installers
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS DMG (universal)
+            os: macos-latest
+            args: --target universal-apple-darwin --bundles dmg
+            artifact_path: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+            platform_key: macos
+
+          - name: Linux AppImage
+            os: ubuntu-22.04
+            args: --bundles appimage
+            artifact_path: src-tauri/target/release/bundle/appimage/*.AppImage
+            platform_key: linux
+
+          - name: Windows MSI
+            os: windows-latest
+            args: --bundles msi
+            artifact_path: src-tauri/target/release/bundle/msi/*.msi
+            platform_key: windows
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install Rust stable (macOS universal targets)
+        if: matrix.platform_key == 'macos'
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Install Rust stable
+        if: matrix.platform_key != 'macos'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Install Linux dependencies
+        if: matrix.platform_key == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            libxdo-dev \
+            file \
+            wget
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      # Optional macOS signing / notarization — set repo secrets when ready:
+      #   APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY,
+      #   APPLE_ID, APPLE_PASSWORD, APPLE_TEAM_ID
+      # https://v2.tauri.app/distribute/sign/macos/
+      #
+      # Optional Windows signing — set certificate secrets when ready:
+      # https://v2.tauri.app/distribute/sign/windows/
+
+      - name: Build installers (Tauri)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          # APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          # APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          # APPLE_ID: ${{ secrets.APPLE_ID }}
+          # APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          projectPath: .
+          tauriScript: npm run tauri
+          args: ${{ matrix.args }}
+          tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
+          releaseName: ${{ startsWith(github.ref, 'refs/tags/') && format('md {0}', github.ref_name) || '' }}
+          releaseBody: |
+            ## md installers
+
+            | Platform | Package |
+            |----------|---------|
+            | macOS | `.dmg` (universal) |
+            | Linux | `.AppImage` |
+            | Windows | `.msi` |
+
+            Built from commit `${{ github.sha }}`.
+
+            ### Install notes
+            - **macOS**: open the DMG and drag **md** to Applications. Unsigned builds may need System Settings → Privacy & Security → Open Anyway.
+            - **Linux**: `chmod +x md_*.AppImage && ./md_*.AppImage`
+            - **Windows**: run the MSI installer (WebView2 bootstrapper downloads if needed).
+          releaseDraft: true
+          prerelease: false
+          includeDebug: false
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: md-${{ matrix.platform_key }}-${{ github.run_number }}
+          path: ${{ matrix.artifact_path }}
+          if-no-files-found: error
+          retention-days: 30
+
+  release-summary:
+    name: Release summary
+    needs: build
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check matrix result
+        run: |
+          if [ "${{ needs.build.result }}" != "success" ]; then
+            echo "One or more installer builds failed: ${{ needs.build.result }}"
+            exit 1
+          fi
+          echo "All platform installers built successfully."
