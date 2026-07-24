@@ -100,6 +100,35 @@ button {
   background: var(--color-selection);
 }
 
+/* Raw markdown markers revealed on the active line (live preview) */
+.ProseMirror .md-syntax {
+  color: var(--color-ink-tertiary);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  font-weight: 400;
+  letter-spacing: normal;
+  user-select: none;
+}
+
+/* Obsidian-style editable document title */
+.doc-title {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 0;
+  margin: 0 0 0.4em;
+  font-family: var(--font-ui);
+  font-size: 1.85rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-ink);
+}
+
+.doc-title::placeholder {
+  color: var(--color-ink-tertiary);
+}
+
 .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;
@@ -143,10 +172,37 @@ button {
   margin: 0.5em 0;
 }
 
+/* Tailwind preflight strips list markers — restore them per nesting level */
+.ProseMirror ul {
+  list-style: disc;
+}
+.ProseMirror ul ul {
+  list-style: circle;
+}
+.ProseMirror ul ul ul {
+  list-style: square;
+}
+.ProseMirror ol {
+  list-style: decimal;
+}
+.ProseMirror ol ol {
+  list-style: lower-alpha;
+}
+.ProseMirror ol ol ol {
+  list-style: lower-roman;
+}
+
 .ProseMirror li {
   margin: 0.2em 0;
   line-height: 1.55;
   font-size: 15px;
+}
+
+/* Paragraphs inside list items: spacing comes from the li, and the first
+   line box must match li line-height so task checkboxes align */
+.ProseMirror li p {
+  margin: 0;
+  line-height: inherit;
 }
 
 .ProseMirror ul[data-type="taskList"] {
@@ -160,8 +216,11 @@ button {
   gap: 0.5em;
 }
 
+/* Center the checkbox on the first text line (15px × 1.55 line box) */
 .ProseMirror ul[data-type="taskList"] li > label {
-  margin-top: 0.3em;
+  display: flex;
+  align-items: center;
+  height: calc(15px * 1.55);
   flex-shrink: 0;
 }
 
@@ -169,6 +228,7 @@ button {
   accent-color: var(--color-accent);
   width: 14px;
   height: 14px;
+  margin: 0;
 }
 
 .ProseMirror ul[data-type="taskList"] li > div {
@@ -200,12 +260,116 @@ button {
   overflow-x: auto;
   margin: 0.85em 0;
   line-height: 1.5;
+  position: relative;
+}
+
+/* Editable language badge on code blocks */
+.cb-lang {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  width: 64px;
+  padding: 1px 5px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  text-align: right;
+  color: var(--color-ink-tertiary);
+}
+
+.cb-lang:hover {
+  background: var(--color-hover);
+  color: var(--color-ink-secondary);
+}
+
+.cb-lang:focus {
+  outline: 1px solid var(--color-hairline-strong);
+  background: var(--color-surface);
 }
 
 .ProseMirror pre code {
   background: none;
   padding: 0;
   font-size: inherit;
+}
+
+/* lowlight (highlight.js) token colors — light theme */
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-built_in {
+  color: #cf222e;
+}
+.hljs-string,
+.hljs-attr,
+.hljs-template-string {
+  color: #0a3069;
+}
+.hljs-number,
+.hljs-literal {
+  color: #0550ae;
+}
+.hljs-comment,
+.hljs-quote {
+  color: #6e7781;
+  font-style: italic;
+}
+.hljs-title,
+.hljs-title.function_,
+.hljs-section {
+  color: #8250df;
+}
+.hljs-title.class_,
+.hljs-type {
+  color: #953800;
+}
+.hljs-variable,
+.hljs-template-variable {
+  color: #e36209;
+}
+.hljs-meta,
+.hljs-tag,
+.hljs-name {
+  color: #116329;
+}
+
+/* dark theme overrides */
+.dark .hljs-keyword,
+.dark .hljs-selector-tag,
+.dark .hljs-built_in {
+  color: #ff7b72;
+}
+.dark .hljs-string,
+.dark .hljs-attr,
+.dark .hljs-template-string {
+  color: #a5d6ff;
+}
+.dark .hljs-number,
+.dark .hljs-literal {
+  color: #79c0ff;
+}
+.dark .hljs-comment,
+.dark .hljs-quote {
+  color: #8b949e;
+}
+.dark .hljs-title,
+.dark .hljs-title.function_,
+.dark .hljs-section {
+  color: #d2a8ff;
+}
+.dark .hljs-title.class_,
+.dark .hljs-type {
+  color: #ffa657;
+}
+.dark .hljs-variable,
+.dark .hljs-template-variable {
+  color: #ffa198;
+}
+.dark .hljs-meta,
+.dark .hljs-tag,
+.dark .hljs-name {
+  color: #7ee787;
 }
 
 .ProseMirror a {

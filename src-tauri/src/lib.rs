@@ -8,6 +8,7 @@ use tauri::{
 
 const RECENT_MAX: usize = 12;
 const RECENT_FILE: &str = "recent.json";
+const SESSION_FILE: &str = "session.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -98,6 +99,134 @@ fn clear_recent(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn remove_recent(app: tauri::AppHandle, path: String) -> Result<Vec<RecentFile>, String> {
+    let mut list = list_recent(app.clone())?;
+    list.retain(|f| f.path != path);
+    let dest = recent_path(&app)?;
+    let raw = serde_json::to_string_pretty(&list).map_err(|e| e.to_string())?;
+    fs::write(dest, raw).map_err(|e| e.to_string())?;
+    Ok(list)
+}
+
+#[tauri::command]
+fn rename_file(old_path: String, new_path: String) -> Result<(), String> {
+    if Path::new(&new_path).exists() {
+        return Err(format!(
+            "A file named {} already exists",
+            file_name_from_path(&new_path)
+        ));
+    }
+    fs::rename(&old_path, &new_path).map_err(|e| format!("Failed to rename file: {e}"))
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DirEntry {
+    pub name: String,
+    pub path: String,
+    pub is_dir: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DirListing {
+    pub dir: String,
+    pub parent: Option<String>,
+    pub entries: Vec<DirEntry>,
+}
+
+/// Sidebar browser shows folders (navigation) plus files md can open.
+fn is_browsable_file(path: &Path) -> bool {
+    matches!(
+        path.extension()
+            .and_then(|e| e.to_str())
+            .map(|e| e.to_ascii_lowercase())
+            .as_deref(),
+        Some("md" | "markdown" | "mdown" | "txt")
+    )
+}
+
+#[tauri::command]
+fn list_dir(app: tauri::AppHandle, path: Option<String>) -> Result<DirListing, String> {
+    let dir = match path {
+        Some(p) => PathBuf::from(p),
+        None => app.path().home_dir().map_err(|e| e.to_string())?,
+    };
+    if !dir.is_dir() {
+        return Err(format!("Not a directory: {}", dir.display()));
+    }
+
+    let mut dirs: Vec<DirEntry> = vec![];
+    let mut files: Vec<DirEntry> = vec![];
+    let read = fs::read_dir(&dir).map_err(|e| format!("Failed to read directory: {e}"))?;
+    for entry in read.flatten() {
+        let name = entry.file_name();
+        let Some(name) = name.to_str() else { continue };
+        if name.starts_with('.') {
+            continue; // skip hidden entries
+        }
+        let p = entry.path();
+        let is_dir = p.is_dir();
+        if !is_dir && !is_browsable_file(&p) {
+            continue;
+        }
+        let item = DirEntry {
+            name: name.to_string(),
+            path: p.to_string_lossy().into_owned(),
+            is_dir,
+        };
+        if is_dir {
+            dirs.push(item);
+        } else {
+            files.push(item);
+        }
+    }
+    let by_name = |a: &DirEntry, b: &DirEntry| a.name.to_lowercase().cmp(&b.name.to_lowercase());
+    dirs.sort_by(by_name);
+    files.sort_by(by_name);
+    dirs.extend(files);
+
+    Ok(DirListing {
+        dir: dir.to_string_lossy().into_owned(),
+        parent: dir.parent().map(|p| p.to_string_lossy().into_owned()),
+        entries: dirs,
+    })
+}
+
+/// Last-opened file / workspace folder, restored on next launch.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct Session {
+    pub file_path: Option<String>,
+    pub workspace: Option<String>,
+}
+
+fn session_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let dir = config_dir(app)?;
+    if !dir.exists() {
+        fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    }
+    Ok(dir.join(SESSION_FILE))
+}
+
+#[tauri::command]
+fn load_session(app: tauri::AppHandle) -> Result<Session, String> {
+    let path = session_path(&app)?;
+    if !path.exists() {
+        return Ok(Session::default());
+    }
+    let raw = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    Ok(serde_json::from_str(&raw).unwrap_or_default())
+}
+
+#[tauri::command]
+fn save_session(app: tauri::AppHandle, session: Session) -> Result<(), String> {
+    let dest = session_path(&app)?;
+    let raw = serde_json::to_string_pretty(&session).map_err(|e| e.to_string())?;
+    fs::write(dest, raw).map_err(|e| e.to_string())
+}
+
 fn build_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let new = MenuItem::with_id(app, "file_new", "New", true, Some("CmdOrCtrl+N"))?;
     let open = MenuItem::with_id(app, "file_open", "Open…", true, Some("CmdOrCtrl+O"))?;
@@ -157,7 +286,12 @@ pub fn run() {
             write_text_file,
             list_recent,
             push_recent,
-            clear_recent
+            clear_recent,
+            remove_recent,
+            rename_file,
+            list_dir,
+            load_session,
+            save_session
         ])
         .setup(|app| {
             let menu = build_menu(app.handle())?;

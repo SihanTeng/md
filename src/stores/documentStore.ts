@@ -2,6 +2,8 @@ import { create } from 'zustand';
 
 export type ThemeMode = 'system' | 'light' | 'dark';
 
+export type SidebarMode = 'outline' | 'files';
+
 export interface OutlineItem {
   id: string;
   level: 1 | 2 | 3;
@@ -29,6 +31,9 @@ interface DocumentState {
   theme: ThemeMode;
   presentOpen: boolean;
   sidebarOpen: boolean;
+  sidebarMode: SidebarMode;
+  workspace: string | null;
+  autoSave: boolean;
   error: string | null;
   isOpening: boolean;
 
@@ -43,6 +48,9 @@ interface DocumentState {
   setTheme: (theme: ThemeMode) => void;
   setPresentOpen: (open: boolean) => void;
   setSidebarOpen: (open: boolean) => void;
+  setSidebarMode: (mode: SidebarMode) => void;
+  setWorkspace: (workspace: string | null) => void;
+  setAutoSave: (autoSave: boolean) => void;
   setError: (error: string | null) => void;
   setIsOpening: (isOpening: boolean) => void;
   loadDocument: (opts: {
@@ -68,6 +76,9 @@ export const useDocumentStore = create<DocumentState>((set) => ({
   theme: 'system',
   presentOpen: false,
   sidebarOpen: true,
+  sidebarMode: 'outline',
+  workspace: null,
+  autoSave: typeof window !== 'undefined' && window.localStorage.getItem('md-autosave') !== '0',
   error: null,
   isOpening: false,
 
@@ -82,6 +93,12 @@ export const useDocumentStore = create<DocumentState>((set) => ({
   setTheme: (theme) => set({ theme }),
   setPresentOpen: (presentOpen) => set({ presentOpen }),
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
+  setSidebarMode: (sidebarMode) => set({ sidebarMode }),
+  setWorkspace: (workspace) => set({ workspace }),
+  setAutoSave: (autoSave) => {
+    window.localStorage.setItem('md-autosave', autoSave ? '1' : '0');
+    set({ autoSave });
+  },
   setError: (error) => set({ error }),
   setIsOpening: (isOpening) => set({ isOpening }),
   loadDocument: (opts) =>

@@ -1,7 +1,8 @@
 import type { Editor } from '@tiptap/react';
-import { Clock, FileText, ListTree } from 'lucide-react';
+import { Clock, FileText, Folder, ListTree } from 'lucide-react';
 import { scrollToPos } from '../lib/outline';
-import { useDocumentStore } from '../stores/documentStore';
+import { type OutlineItem, type RecentFile, useDocumentStore } from '../stores/documentStore';
+import { FilesPane } from './FilesPane';
 
 interface Props {
   editor: Editor | null;
@@ -14,6 +15,8 @@ export function Sidebar({ editor, onOpenRecent }: Props) {
   const recent = useDocumentStore((s) => s.recent);
   const title = useDocumentStore((s) => s.title);
   const dirty = useDocumentStore((s) => s.dirty);
+  const mode = useDocumentStore((s) => s.sidebarMode);
+  const setMode = useDocumentStore((s) => s.setSidebarMode);
 
   if (!open) return null;
 
@@ -22,6 +25,79 @@ export function Sidebar({ editor, onOpenRecent }: Props) {
       className="flex h-full w-[var(--sidebar-width)] shrink-0 flex-col border-r border-[var(--color-hairline)] backdrop-blur-xl"
       style={{ background: 'var(--color-sidebar)' }}
     >
+      <div className="flex gap-1 px-3 pt-3">
+        <ModeButton
+          active={mode === 'outline'}
+          onClick={() => setMode('outline')}
+          title="Document outline"
+        >
+          <ListTree size={14} strokeWidth={1.75} />
+        </ModeButton>
+        <ModeButton active={mode === 'files'} onClick={() => setMode('files')} title="Browse files">
+          <Folder size={14} strokeWidth={1.75} />
+        </ModeButton>
+      </div>
+
+      {mode === 'files' ? (
+        <FilesPane onOpenFile={onOpenRecent} />
+      ) : (
+        <OutlinePane
+          editor={editor}
+          outline={outline}
+          recent={recent}
+          title={title}
+          dirty={dirty}
+          onOpenRecent={onOpenRecent}
+        />
+      )}
+    </aside>
+  );
+}
+
+function ModeButton({
+  active,
+  onClick,
+  title,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className={`inline-flex h-7 w-7 items-center justify-center rounded-[var(--radius-sm)] ${
+        active
+          ? 'bg-[var(--color-hover)] text-[var(--color-ink)]'
+          : 'text-[var(--color-ink-tertiary)] hover:bg-[var(--color-hover)] hover:text-[var(--color-ink)]'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function OutlinePane({
+  editor,
+  outline,
+  recent,
+  title,
+  dirty,
+  onOpenRecent,
+}: {
+  editor: Editor | null;
+  outline: OutlineItem[];
+  recent: RecentFile[];
+  title: string;
+  dirty: boolean;
+  onOpenRecent: (path: string) => void;
+}) {
+  return (
+    <>
       <div className="px-3 pb-2 pt-3">
         <div className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--color-ink-tertiary)]">
           Document
@@ -72,7 +148,7 @@ export function Sidebar({ editor, onOpenRecent }: Props) {
           )}
         </Section>
       </div>
-    </aside>
+    </>
   );
 }
 

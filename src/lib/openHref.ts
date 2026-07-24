@@ -1,11 +1,24 @@
 import { isTauri } from '@tauri-apps/api/core';
+import { homeDir } from '@tauri-apps/api/path';
 import { openUrl, revealItemInDir } from '@tauri-apps/plugin-opener';
+import { useDocumentStore } from '../stores/documentStore';
 
 // Absolute POSIX path, home-relative path, Windows drive path, or file:// URL
 const FILE_PATH_PATTERN = /^(\/|~[/\\]|[A-Za-z]:[/\\]|file:\/\/)/;
+// Anything with a URI scheme (https:, mailto:, tel:, data:, …)
+const SCHEME_PATTERN = /^[a-z][a-z0-9+.-]*:/i;
 
-export function isFilePathHref(href: string): boolean {
+function isFilePathHref(href: string): boolean {
   return FILE_PATH_PATTERN.test(href);
+}
+
+/** Relative link like `./notes.md` or `../docs/x.md`, resolved against the open file's dir. */
+function resolveRelativeHref(href: string): string | null {
+  if (SCHEME_PATTERN.test(href) || href.startsWith('#')) return null;
+  const docPath = useDocumentStore.getState().path;
+  if (!docPath) return null;
+  const dir = docPath.replace(/[/\\][^/\\]*$/, '');
+  return `${dir}/${href}`;
 }
 
 /**
@@ -40,10 +53,17 @@ export async function openHref(href: string): Promise<void> {
   if (!isTauri()) return;
   try {
     if (isFilePathHref(href)) {
-      const path = href.startsWith('file://') ? fileUrlToPath(href) : href;
+      let path = href.startsWith('file://') ? fileUrlToPath(href) : href;
+      // revealItemInDir does not expand "~" — resolve it ourselves
+      if (/^~[/\\]/.test(path)) {
+        path = (await homeDir()) + path.slice(2);
+      }
       await revealItemInDir(path);
     } else if (/^(https?:|mailto:|tel:)/i.test(href)) {
       await openUrl(href);
+    } else {
+      const resolved = resolveRelativeHref(href);
+      if (resolved) await revealItemInDir(resolved);
     }
   } catch (err) {
     console.error(`Failed to open link: ${href}`, err);

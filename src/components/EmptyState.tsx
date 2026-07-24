@@ -1,4 +1,4 @@
-import { FilePlus, FolderOpen } from 'lucide-react';
+import { FilePlus, FileText, FolderOpen } from 'lucide-react';
 import { lazy, Suspense } from 'react';
 import { useDocumentStore } from '../stores/documentStore';
 
@@ -9,9 +9,10 @@ const WelcomePlayer = lazy(() =>
 interface Props {
   onNew: () => void;
   onOpen: () => void;
+  onOpenFolder: () => void;
 }
 
-export function EmptyState({ onNew, onOpen }: Props) {
+export function EmptyState({ onNew, onOpen, onOpenFolder }: Props) {
   const reduced =
     typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -40,7 +41,7 @@ export function EmptyState({ onNew, onOpen }: Props) {
           Markdown, quietly
         </h1>
         <p className="mt-1 max-w-sm text-[13px] text-[var(--color-ink-secondary)]">
-          A simple WYSIWYG editor with present mode. Open a file or start a new document.
+          A simple WYSIWYG editor with present mode. Open a file or folder, or start a new document.
         </p>
       </div>
 
@@ -59,8 +60,16 @@ export function EmptyState({ onNew, onOpen }: Props) {
           onClick={onOpen}
           className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-md)] border border-[var(--color-hairline-strong)] bg-[var(--color-surface)] px-3.5 text-[13px] font-medium text-[var(--color-ink)] hover:bg-[var(--color-hover)] disabled:opacity-40 disabled:pointer-events-none"
         >
+          <FileText size={14} strokeWidth={1.75} />
+          Open File…
+        </button>
+        <button
+          type="button"
+          onClick={onOpenFolder}
+          className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-md)] border border-[var(--color-hairline-strong)] bg-[var(--color-surface)] px-3.5 text-[13px] font-medium text-[var(--color-ink)] hover:bg-[var(--color-hover)]"
+        >
           <FolderOpen size={14} strokeWidth={1.75} />
-          Open…
+          Open Folder…
         </button>
       </div>
     </div>

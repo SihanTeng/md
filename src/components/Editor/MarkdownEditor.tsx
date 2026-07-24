@@ -1,17 +1,20 @@
+import { DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model';
 import { type Editor, EditorContent, useEditor } from '@tiptap/react';
 import { useEffect, useRef } from 'react';
-import { htmlToMarkdown } from '../../lib/markdown/io';
+import { htmlToMarkdown, looksLikeMarkdown, markdownToHtml } from '../../lib/markdown/io';
 import { filePathAt, openHref } from '../../lib/openHref';
 import { buildOutline } from '../../lib/outline';
 import { useDocumentStore } from '../../stores/documentStore';
+import { DocumentTitle } from './DocumentTitle';
 import { createExtensions } from './extensions';
 
 interface Props {
   initialHtml: string;
   onReady?: (editor: Editor) => void;
+  onRename?: (name: string) => void;
 }
 
-export function MarkdownEditor({ initialHtml, onReady }: Props) {
+export function MarkdownEditor({ initialHtml, onReady, onRename }: Props) {
   const setDirty = useDocumentStore((s) => s.setDirty);
   const setContentMarkdown = useDocumentStore((s) => s.setContentMarkdown);
   const setCounts = useDocumentStore((s) => s.setCounts);
@@ -25,6 +28,20 @@ export function MarkdownEditor({ initialHtml, onReady }: Props) {
       attributes: {
         class: 'md-prose focus:outline-none',
         spellcheck: 'true',
+      },
+      handlePaste: (view, event) => {
+        // Rich HTML paste: default handling. Plain text that looks like
+        // markdown source: parse and insert rendered (Typora-style paste).
+        // NB: view.pasteHTML would re-enter this very handlePaste hook.
+        if (event.clipboardData?.getData('text/html')) return false;
+        const text = event.clipboardData?.getData('text/plain') ?? '';
+        if (!looksLikeMarkdown(text)) return false;
+        event.preventDefault();
+        const dom = new window.DOMParser().parseFromString(markdownToHtml(text), 'text/html');
+        const slice = ProseMirrorDOMParser.fromSchema(view.state.schema).parseSlice(dom.body);
+        const tr = view.state.tr.replaceSelection(slice);
+        view.dispatch(tr.scrollIntoView().setMeta('paste', true).setMeta('uiEvent', 'paste'));
+        return true;
       },
       handleDOMEvents: {
         click: (view, event) => {
@@ -79,6 +96,7 @@ export function MarkdownEditor({ initialHtml, onReady }: Props) {
   return (
     <div className="mac-scroll h-full overflow-y-auto">
       <div className="mx-auto max-w-[46rem] px-10 py-8">
+        <DocumentTitle onRename={(name) => onRename?.(name)} />
         <EditorContent editor={editor} />
       </div>
     </div>

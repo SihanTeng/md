@@ -7,6 +7,8 @@ export function StatusBar() {
   const charCount = useDocumentStore((s) => s.charCount);
   const dirty = useDocumentStore((s) => s.dirty);
   const error = useDocumentStore((s) => s.error);
+  const autoSave = useDocumentStore((s) => s.autoSave);
+  const setAutoSave = useDocumentStore((s) => s.setAutoSave);
 
   return (
     <footer
@@ -42,6 +44,14 @@ export function StatusBar() {
           {charCount} char{charCount === 1 ? '' : 's'}
         </span>
         <span>Markdown</span>
+        <button
+          type="button"
+          title="Auto-save edited files (2s after typing stops)"
+          onClick={() => setAutoSave(!autoSave)}
+          className={autoSave ? 'text-[var(--color-ink-secondary)]' : undefined}
+        >
+          Auto-save {autoSave ? 'on' : 'off'}
+        </button>
       </div>
     </footer>
   );

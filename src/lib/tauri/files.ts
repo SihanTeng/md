@@ -29,11 +29,63 @@ export async function clearRecent(): Promise<void> {
   await invoke('clear_recent');
 }
 
+export async function removeRecent(path: string): Promise<RecentFile[]> {
+  return invoke<RecentFile[]>('remove_recent', { path });
+}
+
+export async function renameFile(oldPath: string, newPath: string): Promise<void> {
+  await invoke('rename_file', { oldPath, newPath });
+}
+
+export function dirNameFromPath(path: string): string {
+  const idx = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+  return idx > 0 ? path.slice(0, idx) : '';
+}
+
+export interface DirEntry {
+  name: string;
+  path: string;
+  isDir: boolean;
+}
+
+export interface DirListing {
+  dir: string;
+  parent: string | null;
+  entries: DirEntry[];
+}
+
+export async function listDir(path?: string): Promise<DirListing> {
+  return invoke<DirListing>('list_dir', { path: path ?? null });
+}
+
+export interface Session {
+  filePath: string | null;
+  workspace: string | null;
+}
+
+export async function loadSession(): Promise<Session> {
+  return invoke<Session>('load_session');
+}
+
+export async function saveSession(session: Session): Promise<void> {
+  await invoke('save_session', { session });
+}
+
 export async function pickOpenPath(): Promise<string | null> {
   const selected = await open({
     multiple: false,
     directory: false,
     filters: MD_FILTERS,
+  });
+  if (selected === null) return null;
+  if (Array.isArray(selected)) return selected[0] ?? null;
+  return selected;
+}
+
+export async function pickDirectory(): Promise<string | null> {
+  const selected = await open({
+    multiple: false,
+    directory: true,
   });
   if (selected === null) return null;
   if (Array.isArray(selected)) return selected[0] ?? null;

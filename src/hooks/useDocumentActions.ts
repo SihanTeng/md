@@ -4,11 +4,17 @@ import { useCallback } from 'react';
 import { fileNameFromPath, htmlToMarkdown, markdownToHtml } from '../lib/markdown/io';
 import {
   clearRecent,
+  dirNameFromPath,
   listRecent,
+  loadSession,
+  pickDirectory,
   pickOpenPath,
   pickSavePath,
   pushRecent,
   readTextFile,
+  removeRecent,
+  renameFile,
+  saveSession,
   writeTextFile,
 } from '../lib/tauri/files';
 import { useDocumentStore } from '../stores/documentStore';
@@ -19,6 +25,17 @@ async function setWindowTitle(title: string, dirty: boolean) {
   } catch {
     document.title = dirty ? `• ${title}` : title;
   }
+}
+
+/** Merge a patch into the persisted session (best-effort, fire-and-forget). */
+function persistSession(patch: { filePath?: string | null; workspace?: string | null }) {
+  const s = useDocumentStore.getState();
+  void saveSession({
+    filePath: patch.filePath !== undefined ? patch.filePath : s.path,
+    workspace: patch.workspace !== undefined ? patch.workspace : s.workspace,
+  }).catch(() => {
+    /* not in Tauri */
+  });
 }
 
 export function useDocumentActions(editor: Editor | null) {
@@ -36,6 +53,8 @@ export function useDocumentActions(editor: Editor | null) {
   const setError = useDocumentStore((s) => s.setError);
   const setPresentOpen = useDocumentStore((s) => s.setPresentOpen);
   const setIsOpening = useDocumentStore((s) => s.setIsOpening);
+  const setWorkspace = useDocumentStore((s) => s.setWorkspace);
+  const setSidebarMode = useDocumentStore((s) => s.setSidebarMode);
   const loadDocument = useDocumentStore((s) => s.loadDocument);
 
   const refreshRecent = useCallback(async () => {
@@ -58,12 +77,46 @@ export function useDocumentActions(editor: Editor | null) {
         const recent = await pushRecent(filePath);
         setRecent(recent);
         await setWindowTitle(name, false);
+        persistSession({ filePath });
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       }
     },
     [loadDocument, setError, setRecent],
   );
+
+  const openWorkspace = useCallback(async () => {
+    try {
+      setError(null);
+      const dir = await pickDirectory();
+      if (!dir) return;
+      setWorkspace(dir);
+      setSidebarMode('files');
+      persistSession({ workspace: dir });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }, [setError, setSidebarMode, setWorkspace]);
+
+  /** Restore the last-opened file / workspace from the previous session. */
+  const restoreSession = useCallback(async () => {
+    try {
+      const session = await loadSession();
+      if (session.workspace) setWorkspace(session.workspace);
+      if (session.filePath) {
+        await loadFromPath(session.filePath);
+        // File was moved/deleted since last session — forget it instead of
+        // failing on every launch
+        if (useDocumentStore.getState().error) {
+          persistSession({ filePath: null });
+        }
+      } else if (session.workspace) {
+        setSidebarMode('files');
+      }
+    } catch {
+      // not in Tauri, or session unreadable — start empty
+    }
+  }, [loadFromPath, setSidebarMode, setWorkspace]);
 
   const newDocument = useCallback(async () => {
     if (dirty) {
@@ -179,6 +232,39 @@ export function useDocumentActions(editor: Editor | null) {
     [dirty, loadFromPath],
   );
 
+  /**
+   * Rename the current document (Obsidian-style inline title edit).
+   * Saved files are renamed on disk; unsaved ones just take the new title,
+   * which becomes the default save name.
+   */
+  const renameDocument = useCallback(
+    async (newName: string) => {
+      const cleaned = newName.trim().replace(/[/\\]/g, '');
+      if (!cleaned) return;
+      const fileName = /\.(md|markdown|mdown|txt)$/i.test(cleaned) ? cleaned : `${cleaned}.md`;
+      if (fileName === title) return;
+      try {
+        setError(null);
+        if (path) {
+          const dest = `${dirNameFromPath(path)}/${fileName}`;
+          if (dest !== path) {
+            await renameFile(path, dest);
+            await removeRecent(path);
+            const recent = await pushRecent(dest);
+            setRecent(recent);
+            setPath(dest);
+            persistSession({ filePath: dest });
+          }
+        }
+        setTitle(fileName);
+        await setWindowTitle(fileName, useDocumentStore.getState().dirty);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      }
+    },
+    [path, setError, setPath, setRecent, setTitle, title],
+  );
+
   const present = useCallback(() => {
     if (!hasDocument) return;
     setPresentOpen(true);
@@ -200,9 +286,12 @@ export function useDocumentActions(editor: Editor | null) {
   return {
     newDocument,
     openDocument,
+    openWorkspace,
+    restoreSession,
     saveDocument,
     saveDocumentAs,
     openRecent,
+    renameDocument,
     present,
     refreshRecent,
     clearRecentFiles,

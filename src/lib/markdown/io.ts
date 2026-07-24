@@ -38,6 +38,24 @@ export function markdownToHtml(markdown: string): string {
   return html;
 }
 
+/**
+ * Heuristic: does pasted plain text look like markdown source worth parsing?
+ * Structural markers (headings, lists, quotes, fences) or inline formatting.
+ */
+export function looksLikeMarkdown(text: string): boolean {
+  return (
+    /^#{1,3}\s/m.test(text) ||
+    /^\s*[-*+]\s/m.test(text) ||
+    /^\s*\d+\.\s/m.test(text) ||
+    /^\s*>\s/m.test(text) ||
+    /```/.test(text) ||
+    /\*\*[^*\n]+\*\*/.test(text) ||
+    /(^|[^*])\*[^*\n]+\*/.test(text) ||
+    /`[^`\n]+`/.test(text) ||
+    /\[[^\]\n]+\]\([^)\n]+\)/.test(text)
+  );
+}
+
 export function htmlToMarkdown(html: string): string {
   if (!html || html === '<p></p>') return '';
   return turndown.turndown(html).trim() + (html.trim() ? '\n' : '');

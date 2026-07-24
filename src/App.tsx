@@ -43,6 +43,10 @@ export default function App() {
   const setPresentOpen = useDocumentStore((s) => s.setPresentOpen);
   const theme = useDocumentStore((s) => s.theme);
   const setTheme = useDocumentStore((s) => s.setTheme);
+  const autoSave = useDocumentStore((s) => s.autoSave);
+  const dirty = useDocumentStore((s) => s.dirty);
+  const docPath = useDocumentStore((s) => s.path);
+  const contentMarkdown = useDocumentStore((s) => s.contentMarkdown);
 
   const actions = useDocumentActions(editor);
 
@@ -83,6 +87,24 @@ export default function App() {
   useEffect(() => {
     void actions.refreshRecent();
   }, [actions]);
+
+  // Restore last-opened file / workspace from the previous session
+  const { restoreSession } = actions;
+  useEffect(() => {
+    void restoreSession();
+  }, [restoreSession]);
+
+  // Auto-save: write 2s after the last edit, only for files that already
+  // have a path (untitled docs wait for an explicit save-as)
+  const { saveDocument } = actions;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: contentMarkdown is the debounce trigger — each keystroke resets the timer
+  useEffect(() => {
+    if (!autoSave || !dirty || !docPath) return;
+    const timer = setTimeout(() => {
+      void saveDocument();
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [autoSave, dirty, docPath, contentMarkdown, saveDocument]);
 
   // Native menu events from Rust
   useEffect(() => {
@@ -179,9 +201,18 @@ export default function App() {
 
         <main className="min-h-0 flex-1" style={{ background: 'var(--color-editor-bg)' }}>
           {showEmpty ? (
-            <EmptyState onNew={startWithWelcomeDoc} onOpen={() => void actions.openDocument()} />
+            <EmptyState
+              onNew={startWithWelcomeDoc}
+              onOpen={() => void actions.openDocument()}
+              onOpenFolder={() => void actions.openWorkspace()}
+            />
           ) : (
-            <MarkdownEditor key={revision} initialHtml={contentHtml} onReady={onReady} />
+            <MarkdownEditor
+              key={revision}
+              initialHtml={contentHtml}
+              onReady={onReady}
+              onRename={(name) => void actions.renameDocument(name)}
+            />
           )}
         </main>
 
