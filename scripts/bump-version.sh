@@ -2,13 +2,13 @@
 # Simple version bump script for md
 #
 # Usage:
-#   npm run version          # normal bump (patch)
-#   npm run version -- --major  # major bump
-#   npm run version -- --minor  # minor bump
+#   bun run version               # normal bump (patch)
+#   bun run version -- --major    # major bump
+#   bun run version -- --minor    # minor bump
 #
 # This script:
 #   1. Bumps version in package.json and src-tauri/tauri.conf.json
-#   2. Creates a conventional commit + lightweight tag
+#   2. Creates a conventional commit + annotated tag
 #   3. Pushes the tag
 #   4. Triggers the "Release installers" workflow
 
@@ -28,21 +28,19 @@ elif [[ "${1:-}" == "--minor" || "${2:-}" == "--minor" ]]; then
   BUMP_TYPE="minor"
 fi
 
-echo "Bumping version to $BUMP_TYPE..."
+echo "Bumping version: $BUMP_TYPE..."
 
-# Bump version using npm version (updates package.json and creates tag)
-if [[ "$BUMP_TYPE" == "major" ]]; then
-  npm version major --no-git-tag-version
-elif [[ "$BUMP_TYPE" == "minor" ]]; then
-  npm version minor --no-git-tag-version
-else
-  npm version patch --no-git-tag-version
-fi
+# Compute the next version (bun has no equivalent to `npm version`)
+IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+case "$BUMP_TYPE" in
+  major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+  minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+  patch) PATCH=$((PATCH + 1)) ;;
+esac
+NEW_VERSION="$MAJOR.$MINOR.$PATCH"
 
-# Get new version
-NEW_VERSION=$(jq -r '.version' package.json)
-
-# Update tauri.conf.json
+# Update package.json and tauri.conf.json
+jq --arg v "$NEW_VERSION" '.version = $v' package.json > /tmp/package.json.tmp && mv /tmp/package.json.tmp package.json
 jq --arg v "$NEW_VERSION" '.version = $v' src-tauri/tauri.conf.json > /tmp/tauri.conf.json.tmp && mv /tmp/tauri.conf.json.tmp src-tauri/tauri.conf.json
 
 # Commit and push

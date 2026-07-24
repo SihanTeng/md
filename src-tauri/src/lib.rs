@@ -239,13 +239,30 @@ fn build_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         Some("CmdOrCtrl+Shift+S"),
     )?;
     let sep = PredefinedMenuItem::separator(app)?;
+    let sep2 = PredefinedMenuItem::separator(app)?;
+    let check_updates = MenuItem::with_id(
+        app,
+        "app_check_updates",
+        "Check for Updates…",
+        true,
+        None::<&str>,
+    )?;
     let quit = PredefinedMenuItem::quit(app, Some("Quit"))?;
 
     let file_menu = Submenu::with_items(
         app,
         "File",
         true,
-        &[&new, &open, &sep, &save, &save_as, &sep, &quit],
+        &[
+            &new,
+            &open,
+            &sep,
+            &save,
+            &save_as,
+            &sep2,
+            &check_updates,
+            &quit,
+        ],
     )?;
 
     let present = MenuItem::with_id(
@@ -281,6 +298,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
             read_text_file,
             write_text_file,

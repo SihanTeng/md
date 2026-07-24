@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "com.md.app",
   "build": {
-    "beforeDevCommand": "npm run dev:web",
+    "beforeDevCommand": "bun run dev:web",
     "devUrl": "http://localhost:1520",
-    "beforeBuildCommand": "npm run build",
+    "beforeBuildCommand": "bun run build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -29,7 +29,8 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["dmg", "appimage", "msi"],
+    "targets": ["dmg", "appimage", "rpm", "msi"],
+    "createUpdaterArtifacts": true,
     "category": "Productivity",
     "shortDescription": "Markdown viewer and editor",
     "longDescription": "A calm, cross-platform markdown viewer and editor with WYSIWYG editing and present mode.",
@@ -64,6 +65,14 @@
       "wix": {
         "language": "en-US"
       }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY5QTVEMTQ5RTlBODc0QjgKUldTNGRLanBTZEdsK2I4NDBTdDUyeFF4dEF5MjBLL20xWVB3SWJic3pmeGo2b2huUk5NbThuWkoK",
+      "endpoints": [
+        "https://github.com/SihanTeng/md/releases/latest/download/latest.json"
+      ]
     }
   }
 }

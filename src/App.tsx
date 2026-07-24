@@ -10,6 +10,7 @@ import { Toolbar } from './components/Toolbar';
 import { useDocumentActions } from './hooks/useDocumentActions';
 import { markdownToHtml } from './lib/markdown/io';
 import { applyThemeClass, loadThemePreference, saveThemePreference } from './lib/theme';
+import { checkForUpdates } from './lib/updater';
 import { useDocumentStore } from './stores/documentStore';
 
 const STARTER_MD = `# Welcome to md
@@ -94,6 +95,11 @@ export default function App() {
     void restoreSession();
   }, [restoreSession]);
 
+  // Silent update check on launch (manual checks come from the File menu)
+  useEffect(() => {
+    void checkForUpdates();
+  }, []);
+
   // Auto-save: write 2s after the last edit, only for files that already
   // have a path (untitled docs wait for an explicit save-as)
   const { saveDocument } = actions;
@@ -129,6 +135,9 @@ export default function App() {
           break;
         case 'view_present':
           actions.present();
+          break;
+        case 'app_check_updates':
+          void checkForUpdates(true);
           break;
       }
     })

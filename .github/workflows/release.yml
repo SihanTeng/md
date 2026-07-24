@@ -1,4 +1,4 @@
-# Build installers for macOS (DMG), Linux (AppImage), and Windows (MSI).
+# Build installers for macOS (DMG), Linux (AppImage + RPM), and Windows (MSI).
 #
 # Triggers:
 #   - Push of a version tag: v0.1.0
@@ -9,6 +9,14 @@
 #   - Artifacts always upload to the workflow run.
 #   - Assets are attached to a published GitHub Release.
 #     Tag runs use the pushed tag; manual runs use v<app-version>.
+#   - OTA updates: `createUpdaterArtifacts` is enabled in tauri.conf.json, so
+#     tauri-action signs the bundles and publishes `latest.json` + signatures
+#     to the release. Requires repo secrets:
+#       TAURI_SIGNING_PRIVATE_KEY          (contents of ~/.tauri/md.key)
+#       TAURI_SIGNING_PRIVATE_KEY_PASSWORD (empty if the key has no password)
+#   - Homebrew: the `homebrew` job publishes Casks/md.rb to the
+#     SihanTeng/homebrew-md tap. Requires repo secret HOMEBREW_TAP_GITHUB_TOKEN
+#     (a PAT with contents:write on the tap repo); skipped when unset.
 #   - Code signing is optional — set secrets when ready (see comments below).
 
 name: Release
@@ -39,10 +47,12 @@ jobs:
             artifact_path: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
             platform_key: macos
 
-          - name: Linux AppImage
+          - name: Linux AppImage + RPM
             os: ubuntu-24.04
-            args: --bundles appimage
-            artifact_path: src-tauri/target/release/bundle/appimage/*.AppImage
+            args: --bundles appimage,rpm
+            artifact_path: |
+              src-tauri/target/release/bundle/appimage/*.AppImage
+              src-tauri/target/release/bundle/rpm/*.rpm
             platform_key: linux
 
           - name: Windows MSI
@@ -57,11 +67,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Setup Node.js (Node 24 LTS)
-        uses: actions/setup-node@v6
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version: "24"
-          cache: npm
+          cache: true
 
       - name: Install Rust stable (macOS universal targets)
         if: matrix.platform_key == 'macos'
@@ -89,11 +98,12 @@ jobs:
             libssl-dev \
             libayatana-appindicator3-dev \
             libxdo-dev \
+            rpm \
             file \
             wget
 
       - name: Install frontend dependencies
-        run: npm ci
+        run: bun install --frozen-lockfile
 
       # Optional macOS signing / notarization — set repo secrets when ready:
       #   APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY,
@@ -107,6 +117,9 @@ jobs:
         uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Signs the updater artifacts (.sig + latest.json) for OTA updates.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           # APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           # APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           # APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
@@ -115,7 +128,7 @@ jobs:
           # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           projectPath: .
-          tauriScript: npm run tauri
+          tauriScript: bun run tauri
           args: ${{ matrix.args }}
           tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'v__VERSION__' }}
           releaseName: ${{ startsWith(github.ref, 'refs/tags/') && format('md {0}', github.ref_name) || 'md v__VERSION__' }}
@@ -124,15 +137,21 @@ jobs:
 
             | Platform | Package |
             |----------|---------|
-            | macOS | `.dmg` (universal) |
-            | Linux | `.AppImage` |
+            | macOS | `.dmg` (universal), Homebrew (`brew install --cask sihanteng/md/md`) |
+            | Linux | `.AppImage`, `.rpm` (Fedora/RHEL: `sudo dnf install ./md-*.rpm`) |
             | Windows | `.msi` |
 
             Built from commit `${{ github.sha }}`.
 
+            This release also includes signed updater artifacts (`latest.json` +
+            `.sig` files) — installed copies of md pick up new versions
+            automatically (File → Check for Updates…). On Linux, OTA updates
+            apply to the AppImage; the RPM updates through `dnf`.
+
             ### Install notes
-            - **macOS**: open the DMG and drag **md** to Applications. Unsigned builds may need System Settings → Privacy & Security → Open Anyway.
-            - **Linux**: `chmod +x md_*.AppImage && ./md_*.AppImage`
+            - **macOS**: open the DMG and drag **md** to Applications, or `brew install --cask sihanteng/md/md`. Unsigned builds may need System Settings → Privacy & Security → Open Anyway.
+            - **Linux (AppImage)**: `chmod +x md_*.AppImage && ./md_*.AppImage`
+            - **Linux (RPM)**: `sudo dnf install ./md-*.rpm`
             - **Windows**: run the MSI installer (WebView2 bootstrapper downloads if needed).
           releaseDraft: false
           prerelease: false
@@ -144,6 +163,59 @@ jobs:
           path: ${{ matrix.artifact_path }}
           if-no-files-found: error
           retention-days: 30
+
+  homebrew:
+    name: Publish Homebrew cask
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Resolve release tag and version
+        id: meta
+        run: |
+          VERSION="$(jq -r '.version' src-tauri/tauri.conf.json)"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="v${VERSION}"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Download DMG from the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >
+          gh release download "${{ steps.meta.outputs.tag }}"
+          --repo "${{ github.repository }}" --pattern "*.dmg"
+          --dir dist-dmg --clobber
+
+      - name: Render cask and publish to tap
+        env:
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+          TAP_REPO: SihanTeng/homebrew-md
+        run: |
+          if [[ -z "$HOMEBREW_TAP_GITHUB_TOKEN" ]]; then
+            echo "::notice::HOMEBREW_TAP_GITHUB_TOKEN not set — skipping Homebrew tap publish."
+            exit 0
+          fi
+          SHA="$(sha256sum dist-dmg/*.dmg | cut -d' ' -f1)"
+          git clone "https://x-access-token:${HOMEBREW_TAP_GITHUB_TOKEN}@github.com/${TAP_REPO}.git" tap
+          mkdir -p tap/Casks
+          cp Casks/md.rb tap/Casks/md.rb
+          ./scripts/update-homebrew-cask.sh "${{ steps.meta.outputs.version }}" "$SHA" tap/Casks/md.rb
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/md.rb
+          if git diff --cached --quiet; then
+            echo "Cask already up to date."
+            exit 0
+          fi
+          git commit -m "md ${{ steps.meta.outputs.version }}"
+          git push
 
   release-summary:
     name: Release summary

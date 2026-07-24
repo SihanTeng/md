@@ -4,7 +4,7 @@
 # Usage:
 #   ./scripts/build-installers.sh              # current host OS only
 #   ./scripts/build-installers.sh --all-hint   # print how to get all three packages
-#   ./scripts/build-installers.sh linux        # force AppImage (Linux host required)
+#   ./scripts/build-installers.sh linux        # force AppImage + RPM (Linux host required)
 #   ./scripts/build-installers.sh macos        # force DMG (macOS host required)
 #   ./scripts/build-installers.sh windows      # force MSI (Windows host required)
 #   ./scripts/build-installers.sh --list       # list artifacts from last build
@@ -47,7 +47,7 @@ list_artifacts() {
     found=1
     ls -lh "$f"
   done < <(find src-tauri/target -type f \( \
-      -name '*.dmg' -o -name '*.AppImage' -o -name '*.msi' \
+      -name '*.dmg' -o -name '*.AppImage' -o -name '*.msi' -o -name '*.rpm' \
     \) -print0 2>/dev/null || true)
 
   if [[ "$found" -eq 0 ]]; then
@@ -62,9 +62,9 @@ ${CYAN}Building all installers (DMG + AppImage + MSI)${RESET}
 
 Tauri must build each package on its native OS:
 
-  macOS   →  .dmg       (this machine must be macOS, or use CI)
-  Linux   →  .AppImage  (this machine must be Linux, or use CI)
-  Windows →  .msi       (this machine must be Windows, or use CI)
+  macOS   →  .dmg              (this machine must be macOS, or use CI)
+  Linux   →  .AppImage + .rpm  (this machine must be Linux, or use CI)
+  Windows →  .msi              (this machine must be Windows, or use CI)
 
 Recommended: push a version tag and let GitHub Actions build everything:
 
@@ -77,7 +77,7 @@ Or run the workflow manually:
 Local single-platform build:
 
   ./scripts/build-installers.sh
-  # or: npm run build:installers
+  # or: bun run build:installers
 EOF
 }
 
@@ -89,29 +89,38 @@ require_cmd() {
 }
 
 ensure_deps() {
-  require_cmd npm
+  require_cmd bun
   require_cmd cargo
   require_cmd rustc
 
   if [[ ! -d node_modules ]]; then
-    log "Installing npm dependencies…"
-    npm ci 2>/dev/null || npm install
+    log "Installing dependencies…"
+    bun install --frozen-lockfile 2>/dev/null || bun install
+  fi
+
+  # Bundling updater artifacts (createUpdaterArtifacts) requires the signing
+  # key. Fall back to the default key location when env vars are not set.
+  if [[ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" && -z "${TAURI_SIGNING_PRIVATE_KEY_PATH:-}" && -f "$HOME/.tauri/md.key" ]]; then
+    export TAURI_SIGNING_PRIVATE_KEY_PATH="$HOME/.tauri/md.key"
   fi
 }
 
 build_linux() {
-  log "Building Linux AppImage…"
+  log "Building Linux AppImage + RPM…"
   # AppImage tooling often needs these at runtime of the bundler
   if command -v apt-get >/dev/null 2>&1; then
     if ! pkg-config --exists webkit2gtk-4.1 2>/dev/null; then
       err "webkit2gtk-4.1 not found. Install Tauri Linux deps:"
-      err "  sudo apt-get install libwebkit2gtk-4.1-dev librsvg2-dev patchelf libssl-dev"
+      err "  sudo apt-get install libwebkit2gtk-4.1-dev librsvg2-dev patchelf libssl-dev rpm"
       exit 1
     fi
   fi
-  npm run tauri -- build --bundles appimage
-  ok "AppImage build finished."
+  # RPM bundling needs rpmbuild (Debian/Ubuntu: sudo apt-get install rpm)
+  require_cmd rpmbuild
+  bun run tauri -- build --bundles appimage,rpm
+  ok "Linux bundle build finished."
   find src-tauri/target/release/bundle/appimage -name '*.AppImage' -print 2>/dev/null || true
+  find src-tauri/target/release/bundle/rpm -name '*.rpm' -print 2>/dev/null || true
 }
 
 build_macos() {
@@ -125,10 +134,10 @@ build_macos() {
   fi
 
   if [[ ${#targets[@]} -eq 2 ]]; then
-    npm run tauri -- build --target universal-apple-darwin --bundles dmg
+    bun run tauri -- build --target universal-apple-darwin --bundles dmg
   else
     log "${DIM}Universal target incomplete; building host architecture only.${RESET}"
-    npm run tauri -- build --bundles dmg
+    bun run tauri -- build --bundles dmg
   fi
   ok "DMG build finished."
   find src-tauri/target -path '*/bundle/dmg/*.dmg' -print 2>/dev/null || true
@@ -136,7 +145,7 @@ build_macos() {
 
 build_windows() {
   log "Building Windows MSI (requires WiX Toolset on PATH)…"
-  npm run tauri -- build --bundles msi
+  bun run tauri -- build --bundles msi
   ok "MSI build finished."
   find src-tauri/target/release/bundle/msi -name '*.msi' -print 2>/dev/null || true
 }

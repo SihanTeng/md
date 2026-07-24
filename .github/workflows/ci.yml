@@ -22,12 +22,11 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v6
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version: "24"
-          cache: npm
-      - run: npm ci
-      - run: npm run build
+          cache: true
+      - run: bun install --frozen-lockfile
+      - run: bun run build
 
   linux-appimage:
     name: Linux AppImage smoke build
@@ -36,10 +35,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version: "24"
-          cache: npm
+          cache: true
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -60,10 +58,10 @@ jobs:
             file \
             wget
 
-      - run: npm ci
+      - run: bun install --frozen-lockfile
 
       - name: Build AppImage
-        run: npm run tauri -- build --bundles appimage
+        run: bun run tauri -- build --bundles appimage
 
       - name: Upload AppImage artifact
         uses: actions/upload-artifact@v7
