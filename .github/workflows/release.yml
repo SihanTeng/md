@@ -43,7 +43,8 @@ jobs:
         include:
           - name: macOS DMG (universal)
             os: macos-latest
-            args: --target universal-apple-darwin --bundles dmg
+            # dmg for users; app for the .app.tar.gz OTA updater artifact
+            args: --target universal-apple-darwin --bundles dmg,app
             artifact_path: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
             platform_key: macos
 
