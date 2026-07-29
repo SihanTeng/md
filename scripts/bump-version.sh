@@ -51,11 +51,8 @@ git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml
 git commit -m "chore(release): bump version to $NEW_VERSION"
 git tag -a "v$NEW_VERSION" -m "Release $NEW_VERSION"
 
-# Push + trigger workflow
+# Push + trigger workflow (the tag push triggers the "Release" workflow)
 git push origin main
 git push origin "v$NEW_VERSION"
 
-# Trigger the release workflow (GitHub Actions will create the release with artifacts)
-gh run run -F release.yml
-
-echo "✅ Version $NEW_VERSION bumped, tagged, pushed and release workflow triggered!"
+echo "✅ Version $NEW_VERSION bumped, tagged and pushed — release workflow running!"
