@@ -7,7 +7,7 @@
 #   bun run version -- --minor    # minor bump
 #
 # This script:
-#   1. Bumps version in package.json and src-tauri/tauri.conf.json
+#   1. Bumps version in package.json, src-tauri/tauri.conf.json, and src-tauri/Cargo.toml
 #   2. Creates a conventional commit + annotated tag
 #   3. Pushes the tag
 #   4. Triggers the "Release installers" workflow
@@ -39,12 +39,15 @@ case "$BUMP_TYPE" in
 esac
 NEW_VERSION="$MAJOR.$MINOR.$PATCH"
 
-# Update package.json and tauri.conf.json
+# Update package.json, tauri.conf.json, and Cargo.toml (all three carry the
+# app version: tauri.conf.json drives bundling/updater, Cargo.toml the crate)
 jq --arg v "$NEW_VERSION" '.version = $v' package.json > /tmp/package.json.tmp && mv /tmp/package.json.tmp package.json
 jq --arg v "$NEW_VERSION" '.version = $v' src-tauri/tauri.conf.json > /tmp/tauri.conf.json.tmp && mv /tmp/tauri.conf.json.tmp src-tauri/tauri.conf.json
+# First ^version line in Cargo.toml is the package version (GNU sed, like the other scripts)
+sed -i '0,/^version = ".*"/s//version = "'"$NEW_VERSION"'"/' src-tauri/Cargo.toml
 
 # Commit and push
-git add package.json src-tauri/tauri.conf.json
+git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml
 git commit -m "chore(release): bump version to $NEW_VERSION"
 git tag -a "v$NEW_VERSION" -m "Release $NEW_VERSION"
 

@@ -1,6 +1,8 @@
 import { DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model';
 import { type Editor, EditorContent, useEditor } from '@tiptap/react';
 import { useEffect, useRef } from 'react';
+import { lineAt } from '../../lib/cursor';
+import { pasteImageIntoEditor } from '../../lib/images';
 import { htmlToMarkdown, looksLikeMarkdown, markdownToHtml } from '../../lib/markdown/io';
 import { filePathAt, openHref } from '../../lib/openHref';
 import { buildOutline } from '../../lib/outline';
@@ -16,8 +18,10 @@ interface Props {
 
 export function MarkdownEditor({ initialHtml, onReady, onRename }: Props) {
   const setDirty = useDocumentStore((s) => s.setDirty);
+  const bumpEditTick = useDocumentStore((s) => s.bumpEditTick);
   const setContentMarkdown = useDocumentStore((s) => s.setContentMarkdown);
   const setCounts = useDocumentStore((s) => s.setCounts);
+  const setCursorLine = useDocumentStore((s) => s.setCursorLine);
   const setOutline = useDocumentStore((s) => s.setOutline);
   const readyRef = useRef(false);
 
@@ -30,6 +34,18 @@ export function MarkdownEditor({ initialHtml, onReady, onRename }: Props) {
         spellcheck: 'true',
       },
       handlePaste: (view, event) => {
+        // Image on the clipboard: save as an asset (or embed for unsaved
+        // docs) and insert an image node
+        const imageFile = Array.from(event.clipboardData?.files ?? []).find((f) =>
+          f.type.startsWith('image/'),
+        );
+        if (imageFile) {
+          event.preventDefault();
+          pasteImageIntoEditor(view, imageFile).catch((e) => {
+            useDocumentStore.getState().setError(e instanceof Error ? e.message : String(e));
+          });
+          return true;
+        }
         // Rich HTML paste: default handling. Plain text that looks like
         // markdown source: parse and insert rendered (Typora-style paste).
         // NB: view.pasteHTML would re-enter this very handlePaste hook.
@@ -70,17 +86,23 @@ export function MarkdownEditor({ initialHtml, onReady, onRename }: Props) {
     },
     onUpdate: ({ editor: ed }) => {
       setDirty(true);
-      const html = ed.getHTML();
-      setContentMarkdown(htmlToMarkdown(html));
+      bumpEditTick();
+      // Markdown is serialized lazily at save time — doing it here would
+      // run a full getHTML + turndown pass on every keystroke
       const storage = ed.storage.characterCount;
       const chars = storage?.characters?.() ?? 0;
       const words = storage?.words?.() ?? 0;
       setCounts(words, chars);
+      setCursorLine(lineAt(ed.state));
       setOutline(buildOutline(ed));
+    },
+    onSelectionUpdate: ({ editor: ed }) => {
+      setCursorLine(lineAt(ed.state));
     },
     onCreate: ({ editor: ed }) => {
       const storage = ed.storage.characterCount;
       setCounts(storage?.words?.() ?? 0, storage?.characters?.() ?? 0);
+      setCursorLine(lineAt(ed.state));
       setOutline(buildOutline(ed));
       setContentMarkdown(htmlToMarkdown(ed.getHTML()));
     },

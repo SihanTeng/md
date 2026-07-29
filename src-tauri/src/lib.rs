@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem, Submenu},
@@ -43,11 +44,27 @@ fn read_text_file(path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-fn write_text_file(path: String, contents: String) -> Result<(), String> {
+fn write_text_file(path: String, contents: String, create_new: Option<bool>) -> Result<(), String> {
     if let Some(parent) = Path::new(&path).parent() {
         if !parent.as_os_str().is_empty() && !parent.exists() {
             fs::create_dir_all(parent).map_err(|e| format!("Failed to create directory: {e}"))?;
         }
+    }
+    // create_new: fail rather than overwrite an existing file (used by the
+    // file browser's "New File", where clobbering would be silent data loss)
+    if create_new.unwrap_or(false) {
+        return fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+            .and_then(|mut f| f.write_all(contents.as_bytes()))
+            .map_err(|e| {
+                if e.kind() == std::io::ErrorKind::AlreadyExists {
+                    format!("File already exists: {}", file_name_from_path(&path))
+                } else {
+                    format!("Failed to write file: {e}")
+                }
+            });
     }
     // Write via temp + rename when possible for safer saves
     let tmp = format!("{path}.tmp");
@@ -118,6 +135,70 @@ fn rename_file(old_path: String, new_path: String) -> Result<(), String> {
         ));
     }
     fs::rename(&old_path, &new_path).map_err(|e| format!("Failed to rename file: {e}"))
+}
+
+/// Pasted/uploaded images live in an `assets/` folder next to the document;
+/// the markdown references them by relative path so the folder stays portable.
+/// Returns a collision-free destination like `assets/pic-1.png`.
+fn unique_asset_path(assets_dir: &Path, file_name: &str) -> Result<PathBuf, String> {
+    if !assets_dir.exists() {
+        fs::create_dir_all(assets_dir).map_err(|e| format!("Failed to create assets dir: {e}"))?;
+    }
+    let name = Path::new(file_name)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .filter(|s| !s.is_empty())
+        .unwrap_or("image.png");
+    let (stem, ext) = match name.rsplit_once('.') {
+        Some((s, e)) if !s.is_empty() => (s.to_string(), format!(".{e}")),
+        _ => (name.to_string(), String::new()),
+    };
+    let mut dest = assets_dir.join(format!("{stem}{ext}"));
+    let mut n = 1;
+    while dest.exists() {
+        dest = assets_dir.join(format!("{stem}-{n}{ext}"));
+        n += 1;
+    }
+    Ok(dest)
+}
+
+fn relative_asset_path(dest: &Path) -> String {
+    format!("assets/{}", file_name_from_path(&dest.to_string_lossy()))
+}
+
+/// Store pasted image bytes next to the document; returns the relative path.
+#[tauri::command]
+fn save_image_asset(doc_dir: String, name: String, data_base64: String) -> Result<String, String> {
+    use base64::Engine as _;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(data_base64)
+        .map_err(|e| format!("Invalid image data: {e}"))?;
+    let dest = unique_asset_path(Path::new(&doc_dir).join("assets").as_path(), &name)?;
+    fs::write(&dest, bytes).map_err(|e| format!("Failed to write image: {e}"))?;
+    Ok(relative_asset_path(&dest))
+}
+
+/// Copy an existing image file next to the document; returns the relative path.
+#[tauri::command]
+fn import_image(src_path: String, doc_dir: String) -> Result<String, String> {
+    let src = Path::new(&src_path);
+    if !src.is_file() {
+        return Err(format!("Not a file: {src_path}"));
+    }
+    let dest = unique_asset_path(
+        Path::new(&doc_dir).join("assets").as_path(),
+        &file_name_from_path(&src_path),
+    )?;
+    fs::copy(src, &dest).map_err(|e| format!("Failed to copy image: {e}"))?;
+    Ok(relative_asset_path(&dest))
+}
+
+/// Read a file as base64 — used to embed images into unsaved documents.
+#[tauri::command]
+fn read_binary_file(path: String) -> Result<String, String> {
+    use base64::Engine as _;
+    let bytes = fs::read(&path).map_err(|e| format!("Failed to read file: {e}"))?;
+    Ok(base64::engine::general_purpose::STANDARD.encode(bytes))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -297,7 +378,6 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
@@ -308,6 +388,9 @@ pub fn run() {
             clear_recent,
             remove_recent,
             rename_file,
+            save_image_asset,
+            import_image,
+            read_binary_file,
             list_dir,
             load_session,
             save_session

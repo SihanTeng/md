@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   frontend:
-    name: Frontend (tsc + vite)
+    name: Frontend (lint + test + build)
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -26,12 +26,42 @@ jobs:
         with:
           cache: true
       - run: bun install --frozen-lockfile
+      - run: bun run lint
+      - run: bun run test
       - run: bun run build
+
+  rust:
+    name: Rust (fmt + clippy)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      # clippy compiles the crate, so the Tauri system deps are required
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            librsvg2-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            libxdo-dev
+
+      - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+      - run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 
   linux-appimage:
     name: Linux AppImage smoke build
     runs-on: ubuntu-24.04
-    needs: frontend
+    needs: [frontend, rust]
     steps:
       - uses: actions/checkout@v7
 

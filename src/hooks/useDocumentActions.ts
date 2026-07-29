@@ -1,6 +1,8 @@
+import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { ask } from '@tauri-apps/plugin-dialog';
 import type { Editor } from '@tiptap/react';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { fileNameFromPath, htmlToMarkdown, markdownToHtml } from '../lib/markdown/io';
 import {
   clearRecent,
@@ -36,6 +38,24 @@ function persistSession(patch: { filePath?: string | null; workspace?: string | 
   }).catch(() => {
     /* not in Tauri */
   });
+}
+
+/**
+ * "Discard unsaved changes?" guard. window.confirm is unreliable in the
+ * macOS webview, so go through the native dialog plugin when inside Tauri.
+ */
+async function confirmDiscard(): Promise<boolean> {
+  if (!isTauri()) return window.confirm('Discard unsaved changes?');
+  try {
+    return await ask('Discard unsaved changes?', {
+      title: 'Unsaved changes',
+      kind: 'warning',
+      okLabel: 'Discard',
+      cancelLabel: 'Cancel',
+    });
+  } catch {
+    return false;
+  }
 }
 
 export function useDocumentActions(editor: Editor | null) {
@@ -119,10 +139,7 @@ export function useDocumentActions(editor: Editor | null) {
   }, [loadFromPath, setSidebarMode, setWorkspace]);
 
   const newDocument = useCallback(async () => {
-    if (dirty) {
-      const ok = window.confirm('Discard unsaved changes?');
-      if (!ok) return;
-    }
+    if (dirty && !(await confirmDiscard())) return;
     loadDocument({
       title: 'Untitled',
       markdown: '',
@@ -134,10 +151,7 @@ export function useDocumentActions(editor: Editor | null) {
   }, [dirty, loadDocument, setError]);
 
   const openDocument = useCallback(async () => {
-    if (dirty) {
-      const ok = window.confirm('Discard unsaved changes?');
-      if (!ok) return;
-    }
+    if (dirty && !(await confirmDiscard())) return;
     if (useDocumentStore.getState().isOpening) return;
     try {
       setIsOpening(true);
@@ -163,16 +177,20 @@ export function useDocumentActions(editor: Editor | null) {
         dest = await pickSavePath(`${title.endsWith('.md') ? title : `${title}.md`}`);
         if (!dest) return;
       }
+      // Edits landing while the write is in flight bump editTick — only clear
+      // the dirty flag when the saved content is still current
+      const tickAtWrite = useDocumentStore.getState().editTick;
       await writeTextFile(dest, md.endsWith('\n') ? md : `${md}\n`);
       const name = fileNameFromPath(dest);
+      const stillDirty = useDocumentStore.getState().editTick !== tickAtWrite;
       setPath(dest);
       setTitle(name);
       setContentMarkdown(md);
-      setDirty(false);
+      setDirty(stillDirty);
       setHasDocument(true);
       const recent = await pushRecent(dest);
       setRecent(recent);
-      await setWindowTitle(name, false);
+      await setWindowTitle(name, stillDirty);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
@@ -196,15 +214,17 @@ export function useDocumentActions(editor: Editor | null) {
       const md = editor != null ? htmlToMarkdown(editor.getHTML()) : contentMarkdown;
       const dest = await pickSavePath(path ?? `${title.endsWith('.md') ? title : `${title}.md`}`);
       if (!dest) return;
+      const tickAtWrite = useDocumentStore.getState().editTick;
       await writeTextFile(dest, md.endsWith('\n') ? md : `${md}\n`);
       const name = fileNameFromPath(dest);
+      const stillDirty = useDocumentStore.getState().editTick !== tickAtWrite;
       setPath(dest);
       setTitle(name);
       setContentMarkdown(md);
-      setDirty(false);
+      setDirty(stillDirty);
       const recent = await pushRecent(dest);
       setRecent(recent);
-      await setWindowTitle(name, false);
+      await setWindowTitle(name, stillDirty);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
@@ -223,10 +243,7 @@ export function useDocumentActions(editor: Editor | null) {
 
   const openRecent = useCallback(
     async (filePath: string) => {
-      if (dirty) {
-        const ok = window.confirm('Discard unsaved changes?');
-        if (!ok) return;
-      }
+      if (dirty && !(await confirmDiscard())) return;
       await loadFromPath(filePath);
     },
     [dirty, loadFromPath],
@@ -283,20 +300,40 @@ export function useDocumentActions(editor: Editor | null) {
     await setWindowTitle(title, dirty);
   }, [dirty, title]);
 
-  return {
-    newDocument,
-    openDocument,
-    openWorkspace,
-    restoreSession,
-    saveDocument,
-    saveDocumentAs,
-    openRecent,
-    renameDocument,
-    present,
-    refreshRecent,
-    clearRecentFiles,
-    syncTitle,
-    loadFromPath,
-    loadDocument,
-  };
+  // Memoized as a unit: App effects depend on `actions`, so a fresh object
+  // every render would re-run listeners/IPC on every keystroke
+  return useMemo(
+    () => ({
+      newDocument,
+      openDocument,
+      openWorkspace,
+      restoreSession,
+      saveDocument,
+      saveDocumentAs,
+      openRecent,
+      renameDocument,
+      present,
+      refreshRecent,
+      clearRecentFiles,
+      syncTitle,
+      loadFromPath,
+      loadDocument,
+    }),
+    [
+      newDocument,
+      openDocument,
+      openWorkspace,
+      restoreSession,
+      saveDocument,
+      saveDocumentAs,
+      openRecent,
+      renameDocument,
+      present,
+      refreshRecent,
+      clearRecentFiles,
+      syncTitle,
+      loadFromPath,
+      loadDocument,
+    ],
+  );
 }

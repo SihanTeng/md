@@ -1,6 +1,5 @@
-import { exists } from '@tauri-apps/plugin-fs';
 import { FilePlus, FileText, Folder, FolderOpen, FolderUp } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { openHref } from '../lib/openHref';
 import { type DirListing, listDir, writeTextFile } from '../lib/tauri/files';
 import { useDocumentStore } from '../stores/documentStore';
@@ -35,6 +34,14 @@ export function FilesPane({ onOpenFile }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [menu, setMenu] = useState<MenuTarget | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  // Inline new-file row: holds the directory the file will be created in.
+  // (window.prompt is unreliable in the macOS webview)
+  const [creatingIn, setCreatingIn] = useState<string | null>(null);
+  const newNameRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (creatingIn) newNameRef.current?.select();
+  }, [creatingIn]);
 
   const fallbackDir = workspace ?? (docPath ? parentOf(docPath) : null);
   const effectiveDir = dir === undefined ? fallbackDir : dir;
@@ -73,29 +80,30 @@ export function FilesPane({ onOpenFile }: Props) {
     setMenu({ x: e.clientX, y: e.clientY, path, isDir });
   }, []);
 
-  const newFile = useCallback(
-    async (target: MenuTarget) => {
-      const baseDir = target.isDir ? target.path : parentOf(target.path);
-      if (!baseDir) return;
-      const name = window.prompt('New file name', 'Untitled.md');
-      if (!name?.trim()) return;
-      const trimmed = name.trim();
-      const fileName = /\.(md|markdown|mdown|txt)$/i.test(trimmed) ? trimmed : `${trimmed}.md`;
+  const startCreating = useCallback((target: MenuTarget) => {
+    const baseDir = target.isDir ? target.path : parentOf(target.path);
+    if (baseDir) setCreatingIn(baseDir);
+  }, []);
+
+  const createFile = useCallback(
+    async (rawName: string) => {
+      const baseDir = creatingIn;
+      setCreatingIn(null);
+      const name = rawName.trim();
+      if (!baseDir || !name) return;
+      const fileName = /\.(md|markdown|mdown|txt)$/i.test(name) ? name : `${name}.md`;
       const full = `${baseDir}/${fileName}`;
       try {
-        // write_text_file overwrites silently — guard against data loss
-        if (await exists(full).catch(() => false)) {
-          setStoreError(`File already exists: ${fileName}`);
-          return;
-        }
-        await writeTextFile(full, '');
+        // createNew makes the Rust side fail instead of overwriting an
+        // existing file — works anywhere, unlike the scoped fs plugin
+        await writeTextFile(full, '', { createNew: true });
         setRefreshKey((k) => k + 1);
         onOpenFile(full);
       } catch (e) {
         setStoreError(e instanceof Error ? e.message : String(e));
       }
     },
-    [onOpenFile, setStoreError],
+    [creatingIn, onOpenFile, setStoreError],
   );
 
   const rowClass =
@@ -126,6 +134,32 @@ export function FilesPane({ onOpenFile }: Props) {
               <FolderUp size={13} className="shrink-0" strokeWidth={1.75} />
               <span className="truncate">..</span>
             </button>
+          ) : null}
+          {creatingIn ? (
+            <div className="flex w-full items-center gap-2 rounded-[var(--radius-sm)] px-2 py-1">
+              <FileText
+                size={13}
+                className="shrink-0 text-[var(--color-ink-tertiary)]"
+                strokeWidth={1.75}
+              />
+              <input
+                ref={newNameRef}
+                defaultValue="Untitled.md"
+                spellCheck={false}
+                aria-label={`New file name in ${creatingIn}`}
+                className="h-5 min-w-0 flex-1 bg-transparent text-[12.5px] text-[var(--color-ink)] outline-none placeholder:text-[var(--color-ink-tertiary)]"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    void createFile(e.currentTarget.value);
+                  } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    setCreatingIn(null);
+                  }
+                }}
+                onBlur={() => setCreatingIn(null)}
+              />
+            </div>
           ) : null}
           {listing?.entries.map((entry) => (
             <button
@@ -179,7 +213,7 @@ export function FilesPane({ onOpenFile }: Props) {
               onClick={() => {
                 const target = menu;
                 setMenu(null);
-                void newFile(target);
+                startCreating(target);
               }}
             >
               <FilePlus size={13} className="shrink-0" strokeWidth={1.75} />

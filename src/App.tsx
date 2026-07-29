@@ -1,9 +1,9 @@
 import { listen } from '@tauri-apps/api/event';
 import type { Editor } from '@tiptap/react';
-import { useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import welcomeMarkdown from './assets/welcome.md?raw';
 import { MarkdownEditor } from './components/Editor/MarkdownEditor';
 import { EmptyState } from './components/EmptyState';
-import { PresentOverlay } from './components/Present/PresentOverlay';
 import { Sidebar } from './components/Sidebar';
 import { StatusBar } from './components/StatusBar';
 import { Toolbar } from './components/Toolbar';
@@ -13,27 +13,13 @@ import { applyThemeClass, loadThemePreference, saveThemePreference } from './lib
 import { checkForUpdates } from './lib/updater';
 import { useDocumentStore } from './stores/documentStore';
 
-const STARTER_MD = `# Welcome to md
+// Lazy: keeps remotion/@remotion/player out of the main bundle — they are
+// only fetched when a presentation is actually opened
+const PresentOverlay = lazy(() =>
+  import('./components/Present/PresentOverlay').then((m) => ({ default: m.PresentOverlay })),
+);
 
-A calm, macOS-inspired markdown editor.
-
-## Write naturally
-
-Select text and use the toolbar — or keyboard shortcuts — to format.
-
-- Bullet lists
-- **Bold** and *italic*
-- \`inline code\`
-
-### Tasks
-
-- [x] Open the app
-- [ ] Write something great
-
-## Present
-
-Press **⌘⇧P** (or **Ctrl+Shift+P**) to present slides from your headings.
-`;
+const STARTER_MD = welcomeMarkdown;
 
 export default function App() {
   const [editor, setEditor] = useState<Editor | null>(null);
@@ -47,7 +33,7 @@ export default function App() {
   const autoSave = useDocumentStore((s) => s.autoSave);
   const dirty = useDocumentStore((s) => s.dirty);
   const docPath = useDocumentStore((s) => s.path);
-  const contentMarkdown = useDocumentStore((s) => s.contentMarkdown);
+  const editTick = useDocumentStore((s) => s.editTick);
 
   const actions = useDocumentActions(editor);
 
@@ -103,14 +89,14 @@ export default function App() {
   // Auto-save: write 2s after the last edit, only for files that already
   // have a path (untitled docs wait for an explicit save-as)
   const { saveDocument } = actions;
-  // biome-ignore lint/correctness/useExhaustiveDependencies: contentMarkdown is the debounce trigger — each keystroke resets the timer
+  // biome-ignore lint/correctness/useExhaustiveDependencies: editTick is the debounce trigger — each keystroke resets the timer
   useEffect(() => {
     if (!autoSave || !dirty || !docPath) return;
     const timer = setTimeout(() => {
       void saveDocument();
     }, 2000);
     return () => clearTimeout(timer);
-  }, [autoSave, dirty, docPath, contentMarkdown, saveDocument]);
+  }, [autoSave, dirty, docPath, editTick, saveDocument]);
 
   // Native menu events from Rust
   useEffect(() => {
@@ -229,7 +215,9 @@ export default function App() {
       </div>
 
       {presentOpen ? (
-        <PresentOverlay editor={editor} onClose={() => setPresentOpen(false)} />
+        <Suspense fallback={null}>
+          <PresentOverlay editor={editor} onClose={() => setPresentOpen(false)} />
+        </Suspense>
       ) : null}
     </div>
   );

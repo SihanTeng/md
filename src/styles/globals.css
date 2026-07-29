@@ -295,6 +295,77 @@ button {
   font-size: inherit;
 }
 
+/* GFM tables */
+.ProseMirror .tableWrapper {
+  overflow-x: auto;
+  margin: 0.85em 0;
+}
+
+.ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 14px;
+}
+
+.ProseMirror th,
+.ProseMirror td {
+  border: 1px solid var(--color-hairline-strong);
+  padding: 0.35em 0.7em;
+  text-align: left;
+  vertical-align: top;
+}
+
+.ProseMirror th {
+  background: var(--color-hover);
+  font-weight: 600;
+}
+
+.ProseMirror .selectedCell {
+  background: var(--color-accent-soft);
+}
+
+/* Images */
+.md-image {
+  margin: 0.85em 0;
+}
+
+.md-image img {
+  max-width: 100%;
+  border-radius: var(--radius-md);
+}
+
+.md-image.ProseMirror-selectednode img {
+  outline: 2px solid var(--color-accent);
+}
+
+/* Raw markdown source bar, visible while the image is selected */
+.md-image-src {
+  display: none;
+  width: 100%;
+  margin-top: 4px;
+  padding: 3px 8px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-ink-secondary);
+  background: var(--color-hover);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-sm);
+  outline: none;
+}
+
+.md-image-src:focus {
+  border-color: var(--color-hairline-strong);
+  color: var(--color-ink);
+}
+
+.md-image-src[readonly] {
+  opacity: 0.7;
+}
+
+.md-image.ProseMirror-selectednode .md-image-src {
+  display: block;
+}
+
 /* lowlight (highlight.js) token colors — light theme */
 .hljs-keyword,
 .hljs-selector-tag,

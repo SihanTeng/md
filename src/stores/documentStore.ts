@@ -22,10 +22,14 @@ interface DocumentState {
   contentMarkdown: string;
   contentHtml: string;
   revision: number;
+  /** Bumped on every editor transaction — drives the auto-save debounce and
+   *  lets saves detect edits that landed while a write was in flight. */
+  editTick: number;
   dirty: boolean;
   hasDocument: boolean;
   wordCount: number;
   charCount: number;
+  cursorLine: number;
   outline: OutlineItem[];
   recent: RecentFile[];
   theme: ThemeMode;
@@ -40,9 +44,11 @@ interface DocumentState {
   setPath: (path: string | null) => void;
   setTitle: (title: string) => void;
   setContentMarkdown: (md: string) => void;
+  bumpEditTick: () => void;
   setDirty: (dirty: boolean) => void;
   setHasDocument: (v: boolean) => void;
   setCounts: (words: number, chars: number) => void;
+  setCursorLine: (line: number) => void;
   setOutline: (items: OutlineItem[]) => void;
   setRecent: (files: RecentFile[]) => void;
   setTheme: (theme: ThemeMode) => void;
@@ -67,10 +73,12 @@ export const useDocumentStore = create<DocumentState>((set) => ({
   contentMarkdown: '',
   contentHtml: '<p></p>',
   revision: 0,
+  editTick: 0,
   dirty: false,
   hasDocument: false,
   wordCount: 0,
   charCount: 0,
+  cursorLine: 1,
   outline: [],
   recent: [],
   theme: 'system',
@@ -85,9 +93,11 @@ export const useDocumentStore = create<DocumentState>((set) => ({
   setPath: (path) => set({ path }),
   setTitle: (title) => set({ title }),
   setContentMarkdown: (contentMarkdown) => set({ contentMarkdown }),
+  bumpEditTick: () => set((s) => ({ editTick: s.editTick + 1 })),
   setDirty: (dirty) => set({ dirty }),
   setHasDocument: (hasDocument) => set({ hasDocument }),
   setCounts: (wordCount, charCount) => set({ wordCount, charCount }),
+  setCursorLine: (cursorLine) => set({ cursorLine }),
   setOutline: (outline) => set({ outline }),
   setRecent: (recent) => set({ recent }),
   setTheme: (theme) => set({ theme }),
@@ -108,11 +118,13 @@ export const useDocumentStore = create<DocumentState>((set) => ({
       contentMarkdown: opts.markdown ?? '',
       contentHtml: opts.html ?? '<p></p>',
       revision: s.revision + 1,
+      editTick: 0,
       dirty: false,
       hasDocument: true,
       outline: [],
       wordCount: 0,
       charCount: 0,
+      cursorLine: 1,
       error: null,
     })),
 }));

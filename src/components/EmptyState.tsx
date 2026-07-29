@@ -13,6 +13,7 @@ interface Props {
 }
 
 export function EmptyState({ onNew, onOpen, onOpenFolder }: Props) {
+  const isOpening = useDocumentStore((s) => s.isOpening);
   const reduced =
     typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -56,7 +57,7 @@ export function EmptyState({ onNew, onOpen, onOpenFolder }: Props) {
         </button>
         <button
           type="button"
-          disabled={useDocumentStore.getState().isOpening}
+          disabled={isOpening}
           onClick={onOpen}
           className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-md)] border border-[var(--color-hairline-strong)] bg-[var(--color-surface)] px-3.5 text-[13px] font-medium text-[var(--color-ink)] hover:bg-[var(--color-hover)] disabled:opacity-40 disabled:pointer-events-none"
         >

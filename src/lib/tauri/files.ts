@@ -13,8 +13,12 @@ export async function readTextFile(path: string): Promise<string> {
   return invoke<string>('read_text_file', { path });
 }
 
-export async function writeTextFile(path: string, contents: string): Promise<void> {
-  await invoke('write_text_file', { path, contents });
+export async function writeTextFile(
+  path: string,
+  contents: string,
+  opts?: { createNew?: boolean },
+): Promise<void> {
+  await invoke('write_text_file', { path, contents, createNew: opts?.createNew ?? false });
 }
 
 export async function listRecent(): Promise<RecentFile[]> {
@@ -35,6 +39,25 @@ export async function removeRecent(path: string): Promise<RecentFile[]> {
 
 export async function renameFile(oldPath: string, newPath: string): Promise<void> {
   await invoke('rename_file', { oldPath, newPath });
+}
+
+/** Store pasted image bytes next to the document; returns the relative path. */
+export async function saveImageAsset(
+  docDir: string,
+  name: string,
+  dataBase64: string,
+): Promise<string> {
+  return invoke<string>('save_image_asset', { docDir, name, dataBase64 });
+}
+
+/** Copy an existing image file next to the document; returns the relative path. */
+export async function importImage(srcPath: string, docDir: string): Promise<string> {
+  return invoke<string>('import_image', { srcPath, docDir });
+}
+
+/** Read a file as base64 — used to embed images into unsaved documents. */
+export async function readBinaryFileBase64(path: string): Promise<string> {
+  return invoke<string>('read_binary_file', { path });
 }
 
 export function dirNameFromPath(path: string): string {
@@ -86,6 +109,24 @@ export async function pickDirectory(): Promise<string | null> {
   const selected = await open({
     multiple: false,
     directory: true,
+  });
+  if (selected === null) return null;
+  if (Array.isArray(selected)) return selected[0] ?? null;
+  return selected;
+}
+
+const IMAGE_FILTERS = [
+  {
+    name: 'Images',
+    extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'avif'],
+  },
+];
+
+export async function pickImagePath(): Promise<string | null> {
+  const selected = await open({
+    multiple: false,
+    directory: false,
+    filters: IMAGE_FILTERS,
   });
   if (selected === null) return null;
   if (Array.isArray(selected)) return selected[0] ?? null;

@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
@@ -10,6 +11,9 @@ export default defineConfig(async () => ({
   plugins: [react(), tailwindcss()],
   build: {
     chunkSizeWarningLimit: 1000, // Remotion + React bundle is ~918KB - acceptable for desktop app
+  },
+  test: {
+    environment: 'jsdom',
   },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`

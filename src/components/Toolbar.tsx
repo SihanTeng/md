@@ -1,3 +1,4 @@
+import { isTauri } from '@tauri-apps/api/core';
 import type { Editor } from '@tiptap/react';
 import {
   Bold,
@@ -7,6 +8,7 @@ import {
   Heading1,
   Heading2,
   Heading3,
+  Image as ImageIcon,
   Italic,
   Link as LinkIcon,
   List,
@@ -19,8 +21,17 @@ import {
   Quote,
   Save,
   Sun,
+  Table,
   Underline as UnderlineIcon,
 } from 'lucide-react';
+import { useEffect, useReducer, useRef, useState } from 'react';
+import { fileNameFromPath } from '../lib/markdown/io';
+import {
+  dirNameFromPath,
+  importImage,
+  pickImagePath,
+  readBinaryFileBase64,
+} from '../lib/tauri/files';
 import { resolveDark } from '../lib/theme';
 import { useDocumentStore } from '../stores/documentStore';
 
@@ -73,18 +84,72 @@ export function Toolbar({ editor, onNew, onOpen, onSave, onPresent }: Props) {
   const sidebarOpen = useDocumentStore((s) => s.sidebarOpen);
   const setSidebarOpen = useDocumentStore((s) => s.setSidebarOpen);
   const dirty = useDocumentStore((s) => s.dirty);
+  const isOpening = useDocumentStore((s) => s.isOpening);
   const isDark = resolveDark(theme);
 
-  const setLink = () => {
+  // Re-render on editor transactions so the isActive() highlights follow
+  // cursor and selection — nothing else re-renders this toolbar per edit
+  const [, bump] = useReducer((c: number) => c + 1, 0);
+  useEffect(() => {
+    if (!editor) return;
+    editor.on('transaction', bump);
+    return () => {
+      editor.off('transaction', bump);
+    };
+  }, [editor]);
+
+  // Inline link editor — window.prompt is unreliable in the macOS webview
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkValue, setLinkValue] = useState('');
+  const linkInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (linkOpen) linkInputRef.current?.select();
+  }, [linkOpen]);
+
+  const openLinkEditor = () => {
     if (!editor) return;
     const prev = editor.getAttributes('link').href as string | undefined;
-    const url = window.prompt('Link URL', prev ?? 'https://');
-    if (url === null) return;
-    if (url === '') {
-      editor.chain().focus().extendMarkRange('link').unsetLink().run();
-      return;
+    setLinkValue(prev ?? 'https://');
+    setLinkOpen(true);
+  };
+
+  const applyLink = () => {
+    const url = linkValue.trim();
+    if (editor) {
+      if (url === '') {
+        editor.chain().focus().extendMarkRange('link').unsetLink().run();
+      } else {
+        editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+      }
     }
-    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+    setLinkOpen(false);
+  };
+
+  // Image upload: saved documents copy the file into `<doc dir>/assets/`
+  // and reference it relatively; unsaved ones embed a data URI
+  const insertImage = async () => {
+    if (!editor || !isTauri()) return;
+    try {
+      const srcPath = await pickImagePath();
+      if (!srcPath) return;
+      const alt = fileNameFromPath(srcPath).replace(/\.[^.]+$/, '');
+      const docPath = useDocumentStore.getState().path;
+      if (docPath) {
+        const rel = await importImage(srcPath, dirNameFromPath(docPath));
+        editor.chain().focus().setImage({ src: rel, alt }).run();
+      } else {
+        const b64 = await readBinaryFileBase64(srcPath);
+        const ext = srcPath.split('.').pop()?.toLowerCase() ?? 'png';
+        editor
+          .chain()
+          .focus()
+          .setImage({ src: `data:image/${ext === 'jpg' ? 'jpeg' : ext};base64,${b64}`, alt })
+          .run();
+      }
+    } catch (e) {
+      useDocumentStore.getState().setError(e instanceof Error ? e.message : String(e));
+    }
   };
 
   const icon = 15;
@@ -106,11 +171,7 @@ export function Toolbar({ editor, onNew, onOpen, onSave, onPresent }: Props) {
       <ToolButton title="New (⌘N)" onClick={onNew}>
         <FilePlus size={icon} strokeWidth={1.75} />
       </ToolButton>
-      <ToolButton
-        title="Open (⌘O)"
-        disabled={useDocumentStore.getState().isOpening}
-        onClick={onOpen}
-      >
+      <ToolButton title="Open (⌘O)" disabled={isOpening} onClick={onOpen}>
         <FolderOpen size={icon} strokeWidth={1.75} />
       </ToolButton>
       <ToolButton title={dirty ? 'Save (⌘S) · unsaved' : 'Save (⌘S)'} onClick={onSave}>
@@ -213,9 +274,56 @@ export function Toolbar({ editor, onNew, onOpen, onSave, onPresent }: Props) {
       >
         <Code size={icon} strokeWidth={1.75} />
       </ToolButton>
-      <ToolButton title="Link" disabled={!editor} onClick={setLink}>
-        <LinkIcon size={icon} strokeWidth={1.75} />
+      <ToolButton
+        title="Insert table (or type | --- | under a pipe row)"
+        disabled={!editor}
+        active={!!editor?.isActive('table')}
+        onClick={() => editor?.chain().focus().insertTable({ rows: 3, cols: 2 }).run()}
+      >
+        <Table size={icon} strokeWidth={1.75} />
       </ToolButton>
+      <ToolButton title="Insert image…" disabled={!editor} onClick={() => void insertImage()}>
+        <ImageIcon size={icon} strokeWidth={1.75} />
+      </ToolButton>
+      <div className="relative">
+        <ToolButton title="Link" disabled={!editor} active={linkOpen} onClick={openLinkEditor}>
+          <LinkIcon size={icon} strokeWidth={1.75} />
+        </ToolButton>
+        {linkOpen ? (
+          <>
+            {/* biome-ignore lint/a11y/noStaticElementInteractions lint/a11y/useKeyWithClickEvents: click-catcher that dismisses the popover; Escape is handled by the input */}
+            <div className="fixed inset-0 z-40" onClick={() => setLinkOpen(false)} />
+            <div className="absolute left-0 top-full z-50 mt-1 flex w-64 items-center gap-1 rounded-[var(--radius-md)] border border-[var(--color-hairline)] bg-[var(--color-surface)] p-1 shadow-[var(--shadow-popover)]">
+              <input
+                ref={linkInputRef}
+                value={linkValue}
+                onChange={(e) => setLinkValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    applyLink();
+                  } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    setLinkOpen(false);
+                    editor?.commands.focus();
+                  }
+                }}
+                placeholder="https://"
+                spellCheck={false}
+                aria-label="Link URL (empty to remove)"
+                className="h-7 min-w-0 flex-1 rounded-[var(--radius-sm)] bg-transparent px-2 text-[12.5px] text-[var(--color-ink)] outline-none placeholder:text-[var(--color-ink-tertiary)]"
+              />
+              <button
+                type="button"
+                onClick={applyLink}
+                className="h-7 shrink-0 rounded-[var(--radius-sm)] bg-[var(--color-accent)] px-2 text-[12px] font-medium text-white hover:brightness-105"
+              >
+                {linkValue.trim() === '' ? 'Remove' : 'Apply'}
+              </button>
+            </div>
+          </>
+        ) : null}
+      </div>
       <ToolButton
         title="Horizontal rule"
         disabled={!editor}

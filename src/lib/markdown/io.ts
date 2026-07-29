@@ -32,6 +32,39 @@ turndown.addRule('taskList', {
   replacement: (content) => content,
 });
 
+// GFM tables: rebuild pipe syntax from the DOM (cell alignment attributes are
+// honored when present, though the editor schema currently drops them)
+turndown.addRule('table', {
+  filter: 'table',
+  replacement: (_content, node) => {
+    const rows = Array.from((node as HTMLTableElement).rows);
+    if (rows.length === 0) return '';
+
+    const cellText = (cell: HTMLTableCellElement) =>
+      turndown
+        .turndown(cell.innerHTML)
+        .replace(/\|/g, '\\|')
+        .replace(/\s*\n\s*/g, ' ')
+        .trim();
+
+    const delimiterFor = (cell: HTMLTableCellElement) => {
+      const align = cell.getAttribute('align') ?? cell.style.textAlign;
+      if (align === 'center') return ':---:';
+      if (align === 'right') return '---:';
+      return '---';
+    };
+
+    // GFM requires a header row — use the first row whether or not it has <th>
+    const headerCells = Array.from(rows[0].cells);
+    const lines = [
+      `| ${headerCells.map(cellText).join(' | ')} |`,
+      `| ${headerCells.map(delimiterFor).join(' | ')} |`,
+      ...rows.slice(1).map((r) => `| ${Array.from(r.cells).map(cellText).join(' | ')} |`),
+    ];
+    return `\n\n${lines.join('\n')}\n\n`;
+  },
+});
+
 export function markdownToHtml(markdown: string): string {
   if (!markdown.trim()) return '<p></p>';
   const html = marked.parse(markdown, { async: false }) as string;
@@ -49,10 +82,13 @@ export function looksLikeMarkdown(text: string): boolean {
     /^\s*\d+\.\s/m.test(text) ||
     /^\s*>\s/m.test(text) ||
     /```/.test(text) ||
+    // GFM table delimiter row (| --- | :---: |)
+    /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)+\|?\s*$/m.test(text) ||
     /\*\*[^*\n]+\*\*/.test(text) ||
     /(^|[^*])\*[^*\n]+\*/.test(text) ||
     /`[^`\n]+`/.test(text) ||
-    /\[[^\]\n]+\]\([^)\n]+\)/.test(text)
+    // links and images (alt text may be empty)
+    /!?\[[^\]\n]*\]\([^)\n]+\)/.test(text)
   );
 }
 

@@ -3,8 +3,10 @@ import { useDocumentStore } from '../stores/documentStore';
 
 export function StatusBar() {
   const path = useDocumentStore((s) => s.path);
+  const hasDocument = useDocumentStore((s) => s.hasDocument);
   const wordCount = useDocumentStore((s) => s.wordCount);
   const charCount = useDocumentStore((s) => s.charCount);
+  const cursorLine = useDocumentStore((s) => s.cursorLine);
   const dirty = useDocumentStore((s) => s.dirty);
   const error = useDocumentStore((s) => s.error);
   const autoSave = useDocumentStore((s) => s.autoSave);
@@ -37,6 +39,7 @@ export function StatusBar() {
         ) : null}
       </div>
       <div className="flex shrink-0 items-center gap-3 tabular-nums">
+        {hasDocument ? <span>Ln {cursorLine}</span> : null}
         <span>
           {wordCount} word{wordCount === 1 ? '' : 's'}
         </span>

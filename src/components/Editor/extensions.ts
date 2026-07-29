@@ -1,12 +1,15 @@
 import CharacterCount from '@tiptap/extension-character-count';
 import Placeholder from '@tiptap/extension-placeholder';
+import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
 import StarterKit from '@tiptap/starter-kit';
 import { common, createLowlight } from 'lowlight';
 import { createCodeBlock } from './codeBlock';
 import { ConvertOnLeave } from './convertOnLeave';
+import { createImage } from './image';
 import { LivePreview } from './livePreview';
+import { TableFromPipes } from './tableFromPipes';
 
 // Lightweight highlight.js core with the common grammar bundle (~40 languages)
 const lowlight = createLowlight(common);
@@ -71,6 +74,13 @@ export function createExtensions() {
       nested: true,
     }),
     CharacterCount,
+    // GFM tables: schema support so loaded/pasted tables survive editing
+    Table.configure({ resizable: false }),
+    TableRow,
+    TableHeader,
+    TableCell,
+    TableFromPipes,
+    createImage(),
     LivePreview,
     ConvertOnLeave,
   ];
