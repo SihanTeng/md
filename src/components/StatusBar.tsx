@@ -14,7 +14,7 @@ export function StatusBar() {
 
   return (
     <footer
-      className="flex h-[var(--status-height)] shrink-0 items-center justify-between border-t border-[var(--color-hairline)] px-3 text-[11px] text-[var(--color-ink-tertiary)]"
+      className="flex h-[var(--status-height)] shrink-0 items-center justify-between border-t border-[var(--color-hairline)] px-3 text-[11px] text-[var(--color-ink-tertiary)] print:hidden"
       style={{ background: 'var(--color-toolbar)' }}
     >
       <div className="flex min-w-0 items-center gap-2 truncate">

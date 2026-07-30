@@ -7,8 +7,10 @@ import StarterKit from '@tiptap/starter-kit';
 import { common, createLowlight } from 'lowlight';
 import { createCodeBlock } from './codeBlock';
 import { ConvertOnLeave } from './convertOnLeave';
+import { FindReplace } from './findReplace';
 import { createImage } from './image';
 import { LivePreview } from './livePreview';
+import { MdCommentBlock, MdCommentInline } from './mdComment';
 import { TableFromPipes } from './tableFromPipes';
 
 // Lightweight highlight.js core with the common grammar bundle (~40 languages)
@@ -17,7 +19,10 @@ const lowlight = createLowlight(common);
 export function createExtensions() {
   return [
     StarterKit.configure({
-      heading: { levels: [1, 2, 3] },
+      // All six ATX levels: loaded #### headings used to flatten into plain
+      // paragraphs and lose their hashes on save. The toolbar exposes H1–H3
+      // only; deeper levels arrive via files, paste, or typing the hashes.
+      heading: { levels: [1, 2, 3, 4, 5, 6] },
       // Replaced by CodeBlockLowlight below (syntax highlighting)
       codeBlock: false,
       // StarterKit ships Link — configure it here instead of adding a
@@ -80,6 +85,9 @@ export function createExtensions() {
     TableHeader,
     TableCell,
     TableFromPipes,
+    MdCommentBlock,
+    MdCommentInline,
+    FindReplace,
     createImage(),
     LivePreview,
     ConvertOnLeave,

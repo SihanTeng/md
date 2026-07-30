@@ -2,13 +2,15 @@ import { listen } from '@tauri-apps/api/event';
 import type { Editor } from '@tiptap/react';
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import welcomeMarkdown from './assets/welcome.md?raw';
+import { FindReplaceOverlay } from './components/Editor/FindReplaceOverlay';
 import { MarkdownEditor } from './components/Editor/MarkdownEditor';
 import { EmptyState } from './components/EmptyState';
 import { Sidebar } from './components/Sidebar';
 import { StatusBar } from './components/StatusBar';
 import { Toolbar } from './components/Toolbar';
-import { useDocumentActions } from './hooks/useDocumentActions';
+import { confirmDiscard, useDocumentActions } from './hooks/useDocumentActions';
 import { markdownToHtml } from './lib/markdown/io';
+import { closeWindow, forceQuit } from './lib/tauri/files';
 import { applyThemeClass, loadThemePreference, saveThemePreference } from './lib/theme';
 import { checkForUpdates } from './lib/updater';
 import { useDocumentStore } from './stores/documentStore';
@@ -23,6 +25,7 @@ const STARTER_MD = welcomeMarkdown;
 
 export default function App() {
   const [editor, setEditor] = useState<Editor | null>(null);
+  const [findOpen, setFindOpen] = useState(false);
   const hasDocument = useDocumentStore((s) => s.hasDocument);
   const contentHtml = useDocumentStore((s) => s.contentHtml);
   const revision = useDocumentStore((s) => s.revision);
@@ -86,6 +89,38 @@ export default function App() {
     void checkForUpdates();
   }, []);
 
+  // External-change detection: poll the file's mtime whenever the window
+  // regains focus (clean docs reload, dirty docs ask first)
+  const { checkExternalChange } = actions;
+  useEffect(() => {
+    const onFocus = () => void checkExternalChange();
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [checkExternalChange]);
+
+  // Unsaved-changes guard for window close / Cmd+Q: Rust intercepts the
+  // close and emits here; the frontend confirms, then closes or quits
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listen<string>('close-requested', (event) => {
+      void (async () => {
+        if (useDocumentStore.getState().dirty && !(await confirmDiscard())) return;
+        if (event.payload === 'quit') {
+          await forceQuit();
+        } else {
+          await closeWindow();
+        }
+      })();
+    })
+      .then((fn) => {
+        unlisten = fn;
+      })
+      .catch(() => {
+        /* not in Tauri */
+      });
+    return () => unlisten?.();
+  }, []);
+
   // Auto-save: write 2s after the last edit, only for files that already
   // have a path (untitled docs wait for an explicit save-as)
   const { saveDocument } = actions;
@@ -118,6 +153,18 @@ export default function App() {
           break;
         case 'file_save_as':
           void actions.saveDocumentAs();
+          break;
+        case 'file_export_html':
+          void actions.exportHtml();
+          break;
+        case 'file_export_pdf':
+          void actions.exportPdf();
+          break;
+        case 'edit_find':
+          if (useDocumentStore.getState().hasDocument) setFindOpen(true);
+          break;
+        case 'edit_copy_html':
+          void actions.copyHtml();
           break;
         case 'view_present':
           actions.present();
@@ -158,6 +205,11 @@ export default function App() {
       } else if (key === 's' && !e.shiftKey) {
         e.preventDefault();
         void actions.saveDocument();
+      } else if (key === 'f' && !e.shiftKey) {
+        // Fallback for the browser dev build — inside Tauri the native
+        // Edit → Find… menu accelerator fires instead
+        e.preventDefault();
+        if (useDocumentStore.getState().hasDocument) setFindOpen(true);
       } else if (key === 'p' && e.shiftKey) {
         e.preventDefault();
         actions.present();
@@ -182,10 +234,10 @@ export default function App() {
   }, [actions, showEmpty, startWithWelcomeDoc]);
 
   return (
-    <div className="flex h-full w-full overflow-hidden bg-[var(--color-bg)]">
+    <div className="flex h-full w-full overflow-hidden bg-[var(--color-bg)] print:block print:h-auto print:overflow-visible">
       <Sidebar editor={editor} onOpenRecent={actions.openRecent} />
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col print:block print:h-auto print:overflow-visible">
         <Toolbar
           editor={editor}
           onNew={handleNew}
@@ -194,7 +246,10 @@ export default function App() {
           onPresent={() => actions.present()}
         />
 
-        <main className="min-h-0 flex-1" style={{ background: 'var(--color-editor-bg)' }}>
+        <main
+          className="relative min-h-0 flex-1 print:h-auto print:overflow-visible"
+          style={{ background: 'var(--color-editor-bg)' }}
+        >
           {showEmpty ? (
             <EmptyState
               onNew={startWithWelcomeDoc}
@@ -202,12 +257,17 @@ export default function App() {
               onOpenFolder={() => void actions.openWorkspace()}
             />
           ) : (
-            <MarkdownEditor
-              key={revision}
-              initialHtml={contentHtml}
-              onReady={onReady}
-              onRename={(name) => void actions.renameDocument(name)}
-            />
+            <>
+              <MarkdownEditor
+                key={revision}
+                initialHtml={contentHtml}
+                onReady={onReady}
+                onRename={(name) => void actions.renameDocument(name)}
+              />
+              {editor && findOpen ? (
+                <FindReplaceOverlay editor={editor} onClose={() => setFindOpen(false)} />
+              ) : null}
+            </>
           )}
         </main>
 

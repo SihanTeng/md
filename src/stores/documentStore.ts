@@ -21,6 +21,12 @@ interface DocumentState {
   title: string;
   contentMarkdown: string;
   contentHtml: string;
+  /** Leading YAML frontmatter block, kept verbatim (delimiters included) and
+   *  re-prefixed on save; never rendered in the editor. */
+  frontmatter: string | null;
+  /** Disk mtime (ms since epoch) as of the last load/save — external-change
+   *  detection compares against this on window focus. */
+  fileMtime: number | null;
   revision: number;
   /** Bumped on every editor transaction — drives the auto-save debounce and
    *  lets saves detect edits that landed while a write was in flight. */
@@ -44,6 +50,7 @@ interface DocumentState {
   setPath: (path: string | null) => void;
   setTitle: (title: string) => void;
   setContentMarkdown: (md: string) => void;
+  setFileMtime: (mtime: number | null) => void;
   bumpEditTick: () => void;
   setDirty: (dirty: boolean) => void;
   setHasDocument: (v: boolean) => void;
@@ -64,6 +71,7 @@ interface DocumentState {
     markdown?: string;
     html?: string;
     path?: string | null;
+    frontmatter?: string | null;
   }) => void;
 }
 
@@ -72,6 +80,8 @@ export const useDocumentStore = create<DocumentState>((set) => ({
   title: 'Untitled',
   contentMarkdown: '',
   contentHtml: '<p></p>',
+  frontmatter: null,
+  fileMtime: null,
   revision: 0,
   editTick: 0,
   dirty: false,
@@ -93,6 +103,7 @@ export const useDocumentStore = create<DocumentState>((set) => ({
   setPath: (path) => set({ path }),
   setTitle: (title) => set({ title }),
   setContentMarkdown: (contentMarkdown) => set({ contentMarkdown }),
+  setFileMtime: (fileMtime) => set({ fileMtime }),
   bumpEditTick: () => set((s) => ({ editTick: s.editTick + 1 })),
   setDirty: (dirty) => set({ dirty }),
   setHasDocument: (hasDocument) => set({ hasDocument }),
@@ -117,6 +128,8 @@ export const useDocumentStore = create<DocumentState>((set) => ({
       title: opts.title ?? 'Untitled',
       contentMarkdown: opts.markdown ?? '',
       contentHtml: opts.html ?? '<p></p>',
+      frontmatter: opts.frontmatter ?? null,
+      fileMtime: null,
       revision: s.revision + 1,
       editTick: 0,
       dirty: false,

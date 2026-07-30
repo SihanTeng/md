@@ -2,7 +2,7 @@ import { DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model';
 import { type Editor, EditorContent, useEditor } from '@tiptap/react';
 import { useEffect, useRef } from 'react';
 import { lineAt } from '../../lib/cursor';
-import { pasteImageIntoEditor } from '../../lib/images';
+import { localizeHtmlImages, needsImageLocalization, pasteImageIntoEditor } from '../../lib/images';
 import { htmlToMarkdown, looksLikeMarkdown, markdownToHtml } from '../../lib/markdown/io';
 import { filePathAt, openHref } from '../../lib/openHref';
 import { buildOutline } from '../../lib/outline';
@@ -46,10 +46,28 @@ export function MarkdownEditor({ initialHtml, onReady, onRename }: Props) {
           });
           return true;
         }
-        // Rich HTML paste: default handling. Plain text that looks like
-        // markdown source: parse and insert rendered (Typora-style paste).
-        // NB: view.pasteHTML would re-enter this very handlePaste hook.
-        if (event.clipboardData?.getData('text/html')) return false;
+        // Rich HTML paste: fine by default, unless it carries images whose
+        // bytes we must localize (blob: URLs die with the webview session;
+        // data: URIs become assets when the doc has a directory). Rewrite
+        // through the same persistence rule as a file paste, then insert.
+        const html = event.clipboardData?.getData('text/html');
+        if (html) {
+          if (!needsImageLocalization(html)) return false;
+          event.preventDefault();
+          void (async () => {
+            try {
+              const rewritten = await localizeHtmlImages(html);
+              const dom = new window.DOMParser().parseFromString(rewritten, 'text/html');
+              const slice = ProseMirrorDOMParser.fromSchema(view.state.schema).parseSlice(dom.body);
+              view.dispatch(view.state.tr.replaceSelection(slice).scrollIntoView());
+            } catch (e) {
+              useDocumentStore.getState().setError(e instanceof Error ? e.message : String(e));
+            }
+          })();
+          return true;
+        }
+        // Plain text that looks like markdown source: parse and insert
+        // rendered (Typora-style paste).
         const text = event.clipboardData?.getData('text/plain') ?? '';
         if (!looksLikeMarkdown(text)) return false;
         event.preventDefault();
@@ -116,7 +134,7 @@ export function MarkdownEditor({ initialHtml, onReady, onRename }: Props) {
   }, [editor, onReady]);
 
   return (
-    <div className="mac-scroll h-full overflow-y-auto">
+    <div className="mac-scroll h-full overflow-y-auto print:h-auto print:overflow-y-visible">
       <div className="mx-auto max-w-[46rem] px-10 py-8">
         <DocumentTitle onRename={(name) => onRename?.(name)} />
         <EditorContent editor={editor} />

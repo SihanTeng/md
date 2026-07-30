@@ -72,7 +72,7 @@ function convertBlock(state: EditorState, pos: number): Transaction | null {
 
   const text = block.textContent;
   const matches = findMatches(text);
-  const headingMatch = block.type.name === 'paragraph' ? /^(#{1,3})\s/.exec(text) : null;
+  const headingMatch = block.type.name === 'paragraph' ? /^(#{1,6})\s/.exec(text) : null;
   if (matches.length === 0 && !headingMatch) return null;
 
   const contentStart = pos + 1;

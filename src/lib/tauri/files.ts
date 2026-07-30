@@ -94,6 +94,26 @@ export async function saveSession(session: Session): Promise<void> {
   await invoke('save_session', { session });
 }
 
+/** File modification time in ms since epoch — for external-change detection. */
+export async function fileMtime(path: string): Promise<number> {
+  return invoke<number>('file_mtime', { path });
+}
+
+/** Open the system print dialog (users pick "Save as PDF" to export). */
+export async function printWindow(): Promise<void> {
+  await invoke('print_window');
+}
+
+/** Destroy the main window after a confirmed close. */
+export async function closeWindow(): Promise<void> {
+  await invoke('close_window');
+}
+
+/** Quit the whole app after a confirmed close (Cmd+Q path). */
+export async function forceQuit(): Promise<void> {
+  await invoke('force_quit');
+}
+
 export async function pickOpenPath(): Promise<string | null> {
   const selected = await open({
     multiple: false,
@@ -139,4 +159,11 @@ export async function pickSavePath(defaultPath?: string): Promise<string | null>
     defaultPath: defaultPath ?? 'Untitled.md',
   });
   return path;
+}
+
+const HTML_FILTERS = [{ name: 'HTML', extensions: ['html'] }];
+
+/** Save-dialog for HTML export (`.html` extension, own filter). */
+export async function pickExportHtmlPath(defaultPath: string): Promise<string | null> {
+  return save({ filters: HTML_FILTERS, defaultPath });
 }

@@ -1,5 +1,6 @@
 import { marked } from 'marked';
 import TurndownService from 'turndown';
+import { commentMarkedExtensions, decodeComment } from './comments';
 
 /** Configure marked for GFM-ish HTML output suitable for TipTap. */
 marked.setOptions({
@@ -7,12 +8,43 @@ marked.setOptions({
   breaks: false,
 });
 
+// Intercept HTML comments before marked's html tokenizer so they survive
+// the editor as placeholder elements (see comments.ts)
+marked.use({ extensions: commentMarkedExtensions });
+
 const turndown = new TurndownService({
   headingStyle: 'atx',
   codeBlockStyle: 'fenced',
   bulletListMarker: '-',
   emDelimiter: '*',
   strongDelimiter: '**',
+});
+
+// Strikethrough: marked emits <del>, TipTap's Strike mark emits <s> — without
+// a rule turndown silently dropped the mark on save
+turndown.addRule('strikethrough', {
+  filter: ['del', 's', 'strike'] as unknown as TurndownService.Filter,
+  replacement: (content) => `~~${content}~~`,
+});
+
+// Underline: no Markdown syntax exists — Typora's convention is inline HTML
+turndown.addRule('underline', {
+  filter: 'u',
+  replacement: (content) => `<u>${content}</u>`,
+});
+
+// HTML comments: restore the original `<!-- ... -->` from the placeholder
+// elements produced on load (block comments own their lines, inline don't)
+turndown.addRule('mdComment', {
+  filter: (node) => {
+    if (node.nodeName !== 'DIV' && node.nodeName !== 'SPAN') return false;
+    return (node as HTMLElement).hasAttribute('data-md-comment');
+  },
+  replacement: (_content, node) => {
+    const el = node as HTMLElement;
+    const raw = decodeComment(el.getAttribute('data-md-comment') ?? '');
+    return el.nodeName === 'DIV' ? `\n\n${raw}\n\n` : raw;
+  },
 });
 
 // Task list items
@@ -77,7 +109,7 @@ export function markdownToHtml(markdown: string): string {
  */
 export function looksLikeMarkdown(text: string): boolean {
   return (
-    /^#{1,3}\s/m.test(text) ||
+    /^#{1,6}\s/m.test(text) ||
     /^\s*[-*+]\s/m.test(text) ||
     /^\s*\d+\.\s/m.test(text) ||
     /^\s*>\s/m.test(text) ||

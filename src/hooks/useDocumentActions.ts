@@ -3,15 +3,20 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ask } from '@tauri-apps/plugin-dialog';
 import type { Editor } from '@tiptap/react';
 import { useCallback, useMemo } from 'react';
+import { buildExportHtmlDocument } from '../lib/export';
+import { joinFrontmatter, splitFrontmatter } from '../lib/markdown/frontmatter';
 import { fileNameFromPath, htmlToMarkdown, markdownToHtml } from '../lib/markdown/io';
 import {
   clearRecent,
   dirNameFromPath,
+  fileMtime,
   listRecent,
   loadSession,
   pickDirectory,
+  pickExportHtmlPath,
   pickOpenPath,
   pickSavePath,
+  printWindow,
   pushRecent,
   readTextFile,
   removeRecent,
@@ -44,7 +49,7 @@ function persistSession(patch: { filePath?: string | null; workspace?: string | 
  * "Discard unsaved changes?" guard. window.confirm is unreliable in the
  * macOS webview, so go through the native dialog plugin when inside Tauri.
  */
-async function confirmDiscard(): Promise<boolean> {
+export async function confirmDiscard(): Promise<boolean> {
   if (!isTauri()) return window.confirm('Discard unsaved changes?');
   try {
     return await ask('Discard unsaved changes?', {
@@ -58,11 +63,16 @@ async function confirmDiscard(): Promise<boolean> {
   }
 }
 
+/** Current document body as markdown (editor-first, store fallback). */
+function currentBodyMarkdown(editor: Editor | null): string {
+  if (editor) return htmlToMarkdown(editor.getHTML());
+  return useDocumentStore.getState().contentMarkdown;
+}
+
 export function useDocumentActions(editor: Editor | null) {
   const path = useDocumentStore((s) => s.path);
   const title = useDocumentStore((s) => s.title);
   const dirty = useDocumentStore((s) => s.dirty);
-  const contentMarkdown = useDocumentStore((s) => s.contentMarkdown);
   const hasDocument = useDocumentStore((s) => s.hasDocument);
   const setPath = useDocumentStore((s) => s.setPath);
   const setTitle = useDocumentStore((s) => s.setTitle);
@@ -75,6 +85,7 @@ export function useDocumentActions(editor: Editor | null) {
   const setIsOpening = useDocumentStore((s) => s.setIsOpening);
   const setWorkspace = useDocumentStore((s) => s.setWorkspace);
   const setSidebarMode = useDocumentStore((s) => s.setSidebarMode);
+  const setFileMtime = useDocumentStore((s) => s.setFileMtime);
   const loadDocument = useDocumentStore((s) => s.loadDocument);
 
   const refreshRecent = useCallback(async () => {
@@ -91,9 +102,13 @@ export function useDocumentActions(editor: Editor | null) {
       try {
         setError(null);
         const text = await readTextFile(filePath);
-        const html = markdownToHtml(text);
+        // Frontmatter is split off and stored verbatim — marked would parse
+        // the `---` delimiters as horizontal rules and destroy it on save
+        const { frontmatter, body } = splitFrontmatter(text);
+        const html = markdownToHtml(body);
         const name = fileNameFromPath(filePath);
-        loadDocument({ path: filePath, title: name, markdown: text, html });
+        loadDocument({ path: filePath, title: name, markdown: body, html, frontmatter });
+        setFileMtime(await fileMtime(filePath).catch(() => null));
         const recent = await pushRecent(filePath);
         setRecent(recent);
         await setWindowTitle(name, false);
@@ -102,7 +117,7 @@ export function useDocumentActions(editor: Editor | null) {
         setError(e instanceof Error ? e.message : String(e));
       }
     },
-    [loadDocument, setError, setRecent],
+    [loadDocument, setError, setFileMtime, setRecent],
   );
 
   const openWorkspace = useCallback(async () => {
@@ -171,7 +186,8 @@ export function useDocumentActions(editor: Editor | null) {
   const saveDocument = useCallback(async () => {
     try {
       setError(null);
-      const md = editor != null ? htmlToMarkdown(editor.getHTML()) : contentMarkdown;
+      const body = currentBodyMarkdown(editor);
+      const md = joinFrontmatter(useDocumentStore.getState().frontmatter, body);
       let dest = path;
       if (!dest) {
         dest = await pickSavePath(`${title.endsWith('.md') ? title : `${title}.md`}`);
@@ -181,11 +197,12 @@ export function useDocumentActions(editor: Editor | null) {
       // the dirty flag when the saved content is still current
       const tickAtWrite = useDocumentStore.getState().editTick;
       await writeTextFile(dest, md.endsWith('\n') ? md : `${md}\n`);
+      setFileMtime(await fileMtime(dest).catch(() => null));
       const name = fileNameFromPath(dest);
       const stillDirty = useDocumentStore.getState().editTick !== tickAtWrite;
       setPath(dest);
       setTitle(name);
-      setContentMarkdown(md);
+      setContentMarkdown(body);
       setDirty(stillDirty);
       setHasDocument(true);
       const recent = await pushRecent(dest);
@@ -195,12 +212,12 @@ export function useDocumentActions(editor: Editor | null) {
       setError(e instanceof Error ? e.message : String(e));
     }
   }, [
-    contentMarkdown,
     editor,
     path,
     setContentMarkdown,
     setDirty,
     setError,
+    setFileMtime,
     setHasDocument,
     setPath,
     setRecent,
@@ -211,16 +228,18 @@ export function useDocumentActions(editor: Editor | null) {
   const saveDocumentAs = useCallback(async () => {
     try {
       setError(null);
-      const md = editor != null ? htmlToMarkdown(editor.getHTML()) : contentMarkdown;
+      const body = currentBodyMarkdown(editor);
+      const md = joinFrontmatter(useDocumentStore.getState().frontmatter, body);
       const dest = await pickSavePath(path ?? `${title.endsWith('.md') ? title : `${title}.md`}`);
       if (!dest) return;
       const tickAtWrite = useDocumentStore.getState().editTick;
       await writeTextFile(dest, md.endsWith('\n') ? md : `${md}\n`);
+      setFileMtime(await fileMtime(dest).catch(() => null));
       const name = fileNameFromPath(dest);
       const stillDirty = useDocumentStore.getState().editTick !== tickAtWrite;
       setPath(dest);
       setTitle(name);
-      setContentMarkdown(md);
+      setContentMarkdown(body);
       setDirty(stillDirty);
       const recent = await pushRecent(dest);
       setRecent(recent);
@@ -229,12 +248,12 @@ export function useDocumentActions(editor: Editor | null) {
       setError(e instanceof Error ? e.message : String(e));
     }
   }, [
-    contentMarkdown,
     editor,
     path,
     setContentMarkdown,
     setDirty,
     setError,
+    setFileMtime,
     setPath,
     setRecent,
     setTitle,
@@ -248,6 +267,80 @@ export function useDocumentActions(editor: Editor | null) {
     },
     [dirty, loadFromPath],
   );
+
+  /**
+   * External-change detection (Typora/ghostwriter behavior): on window focus,
+   * compare the file's mtime against the last load/save. Clean documents
+   * reload silently; dirty ones ask before discarding edits.
+   */
+  const checkExternalChange = useCallback(async () => {
+    const s = useDocumentStore.getState();
+    if (!s.path || s.isOpening || !isTauri()) return;
+    try {
+      const mtime = await fileMtime(s.path);
+      if (s.fileMtime == null || mtime === s.fileMtime) return;
+      setFileMtime(mtime);
+      if (!s.dirty) {
+        await loadFromPath(s.path);
+        return;
+      }
+      const reload = await ask(`"${s.title}" changed on disk. Reload it and discard your edits?`, {
+        title: 'File changed on disk',
+        kind: 'warning',
+        okLabel: 'Reload',
+        cancelLabel: 'Keep my changes',
+      });
+      if (reload) await loadFromPath(s.path);
+    } catch {
+      // File moved/deleted/unreadable — leave the in-memory document alone
+    }
+  }, [loadFromPath, setFileMtime]);
+
+  /** Export the current document as a standalone styled HTML file. */
+  const exportHtml = useCallback(async () => {
+    try {
+      setError(null);
+      const s = useDocumentStore.getState();
+      const base = s.title.replace(/\.(md|markdown|mdown|txt)$/i, '') || 'Untitled';
+      const dest = await pickExportHtmlPath(`${base}.html`);
+      if (!dest) return;
+      const bodyHtml = markdownToHtml(currentBodyMarkdown(editor));
+      await writeTextFile(dest, buildExportHtmlDocument(base, bodyHtml));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }, [editor, setError]);
+
+  /** Export to PDF via the system print dialog ("Save as PDF"). */
+  const exportPdf = useCallback(async () => {
+    try {
+      setError(null);
+      await printWindow();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }, [setError]);
+
+  /** Copy the rendered document to the clipboard as rich HTML. */
+  const copyHtml = useCallback(async () => {
+    try {
+      setError(null);
+      const bodyHtml = buildExportHtmlDocument('', markdownToHtml(currentBodyMarkdown(editor)));
+      const plain = currentBodyMarkdown(editor);
+      if (typeof ClipboardItem !== 'undefined') {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            'text/html': new Blob([bodyHtml], { type: 'text/html' }),
+            'text/plain': new Blob([plain], { type: 'text/plain' }),
+          }),
+        ]);
+      } else {
+        await navigator.clipboard.writeText(bodyHtml);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }, [editor, setError]);
 
   /**
    * Rename the current document (Obsidian-style inline title edit).
@@ -318,6 +411,10 @@ export function useDocumentActions(editor: Editor | null) {
       syncTitle,
       loadFromPath,
       loadDocument,
+      checkExternalChange,
+      exportHtml,
+      exportPdf,
+      copyHtml,
     }),
     [
       newDocument,
@@ -334,6 +431,10 @@ export function useDocumentActions(editor: Editor | null) {
       syncTitle,
       loadFromPath,
       loadDocument,
+      checkExternalChange,
+      exportHtml,
+      exportPdf,
+      copyHtml,
     ],
   );
 }

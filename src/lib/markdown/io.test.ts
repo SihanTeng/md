@@ -37,11 +37,50 @@ describe('htmlToMarkdown', () => {
     const md = '# Doc\n\nSome **bold** text.\n\n-   one\n-   two\n';
     expect(htmlToMarkdown(markdownToHtml(md))).toBe(md);
   });
+
+  it('round-trips strikethrough instead of dropping it', () => {
+    // Regression: turndown had no strike rule, so ~~x~~ saved as plain x
+    expect(htmlToMarkdown(markdownToHtml('~~gone~~'))).toBe('~~gone~~\n');
+    expect(htmlToMarkdown('<p><s>x</s></p>')).toBe('~~x~~\n');
+    expect(htmlToMarkdown('<p><del>x</del></p>')).toBe('~~x~~\n');
+  });
+
+  it('round-trips underline as inline HTML (Typora convention)', () => {
+    expect(htmlToMarkdown('<p><u>up</u></p>')).toBe('<u>up</u>\n');
+    expect(htmlToMarkdown(markdownToHtml('<u>up</u>'))).toBe('<u>up</u>\n');
+  });
+
+  it('round-trips headings of all six levels', () => {
+    for (let level = 1; level <= 6; level++) {
+      const md = `${'#'.repeat(level)} Title\n`;
+      expect(htmlToMarkdown(markdownToHtml(md))).toBe(md);
+    }
+  });
+
+  it('round-trips block and inline HTML comments verbatim', () => {
+    expect(htmlToMarkdown(markdownToHtml('<!-- note -->'))).toBe('<!-- note -->\n');
+    expect(htmlToMarkdown(markdownToHtml('before <!-- mid --> after'))).toBe(
+      'before <!-- mid --> after\n',
+    );
+  });
+
+  it('preserves comment content with quotes, angle brackets, and unicode', () => {
+    const comment = '<!-- "quoted" <tags> ünïcödé -->';
+    expect(htmlToMarkdown(markdownToHtml(comment))).toBe(`${comment}\n`);
+  });
+
+  it('does not mistake comment-like text inside code fences for comments', () => {
+    const md = '```html\n<!-- not a comment node -->\n```\n';
+    const out = htmlToMarkdown(markdownToHtml(md));
+    expect(out).toContain('```html');
+    expect(out).toContain('<!-- not a comment node -->');
+  });
 });
 
 describe('looksLikeMarkdown', () => {
   it('detects structural markdown', () => {
     expect(looksLikeMarkdown('# Heading')).toBe(true);
+    expect(looksLikeMarkdown('#### Deep heading')).toBe(true);
     expect(looksLikeMarkdown('- item')).toBe(true);
     expect(looksLikeMarkdown('1. first')).toBe(true);
     expect(looksLikeMarkdown('> quote')).toBe(true);

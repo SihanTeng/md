@@ -156,7 +156,7 @@ export function Toolbar({ editor, onNew, onOpen, onSave, onPresent }: Props) {
 
   return (
     <div
-      className="flex h-[var(--toolbar-height)] shrink-0 items-center gap-0.5 border-b border-[var(--color-hairline)] px-2"
+      className="flex h-[var(--toolbar-height)] shrink-0 items-center gap-0.5 border-b border-[var(--color-hairline)] px-2 print:hidden"
       style={{ background: 'var(--color-toolbar)' }}
     >
       <ToolButton

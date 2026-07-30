@@ -308,6 +308,42 @@ fn save_session(app: tauri::AppHandle, session: Session) -> Result<(), String> {
     fs::write(dest, raw).map_err(|e| e.to_string())
 }
 
+/// File modification time (ms since epoch) — the frontend polls this on
+/// window focus to detect external edits.
+#[tauri::command]
+fn file_mtime(path: String) -> Result<u64, String> {
+    let meta = fs::metadata(&path).map_err(|e| format!("Failed to stat file: {e}"))?;
+    let mtime = meta.modified().map_err(|e| e.to_string())?;
+    Ok(mtime
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|e| e.to_string())?
+        .as_millis() as u64)
+}
+
+/// System print dialog — the PDF export path (users choose "Save as PDF").
+#[tauri::command]
+fn print_window(app: tauri::AppHandle) -> Result<(), String> {
+    let win = app
+        .get_webview_window("main")
+        .ok_or_else(|| "main window not found".to_string())?;
+    win.print().map_err(|e| e.to_string())
+}
+
+/// Destroy the main window after the frontend confirmed the close.
+#[tauri::command]
+fn close_window(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(win) = app.get_webview_window("main") {
+        win.destroy().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+/// Quit the app after the frontend confirmed the close (Cmd+Q path).
+#[tauri::command]
+fn force_quit(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
 fn build_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let new = MenuItem::with_id(app, "file_new", "New", true, Some("CmdOrCtrl+N"))?;
     let open = MenuItem::with_id(app, "file_open", "Open…", true, Some("CmdOrCtrl+O"))?;
@@ -321,6 +357,10 @@ fn build_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     )?;
     let sep = PredefinedMenuItem::separator(app)?;
     let sep2 = PredefinedMenuItem::separator(app)?;
+    let sep3 = PredefinedMenuItem::separator(app)?;
+    let export_html =
+        MenuItem::with_id(app, "file_export_html", "Export HTML…", true, None::<&str>)?;
+    let export_pdf = MenuItem::with_id(app, "file_export_pdf", "Export PDF…", true, None::<&str>)?;
     let check_updates = MenuItem::with_id(
         app,
         "app_check_updates",
@@ -341,6 +381,9 @@ fn build_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
             &save,
             &save_as,
             &sep2,
+            &export_html,
+            &export_pdf,
+            &sep3,
             &check_updates,
             &quit,
         ],
@@ -367,6 +410,9 @@ fn build_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
             &PredefinedMenuItem::copy(app, None)?,
             &PredefinedMenuItem::paste(app, None)?,
             &PredefinedMenuItem::select_all(app, None)?,
+            &PredefinedMenuItem::separator(app)?,
+            &MenuItem::with_id(app, "edit_find", "Find…", true, Some("CmdOrCtrl+F"))?,
+            &MenuItem::with_id(app, "edit_copy_html", "Copy as HTML", true, None::<&str>)?,
         ],
     )?;
 
@@ -393,7 +439,11 @@ pub fn run() {
             read_binary_file,
             list_dir,
             load_session,
-            save_session
+            save_session,
+            file_mtime,
+            print_window,
+            close_window,
+            force_quit
         ])
         .setup(|app| {
             let menu = build_menu(app.handle())?;
@@ -405,8 +455,32 @@ pub fn run() {
                 let _ = handle.emit("menu", id);
             });
 
+            // Unsaved-changes guard: never let the OS close the window
+            // directly — ask the frontend, which destroys the window (or
+            // quits) once the user confirms.
+            if let Some(window) = app.get_webview_window("main") {
+                let win = window.clone();
+                window.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        api.prevent_close();
+                        let _ = win.emit("close-requested", "window");
+                    }
+                });
+            }
+
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|handle, event| {
+            // Same guard for Cmd+Q / Quit: hold the exit, let the frontend
+            // confirm, then it calls force_quit. When the window is already
+            // gone (macOS keeps the app running) just exit normally.
+            if let tauri::RunEvent::ExitRequested { api, .. } = event {
+                if handle.get_webview_window("main").is_some() {
+                    api.prevent_exit();
+                    let _ = handle.emit("close-requested", "quit");
+                }
+            }
+        });
 }

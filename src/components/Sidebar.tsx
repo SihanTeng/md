@@ -22,7 +22,7 @@ export function Sidebar({ editor, onOpenRecent }: Props) {
 
   return (
     <aside
-      className="flex h-full w-[var(--sidebar-width)] shrink-0 flex-col border-r border-[var(--color-hairline)] backdrop-blur-xl"
+      className="flex h-full w-[var(--sidebar-width)] shrink-0 flex-col border-r border-[var(--color-hairline)] backdrop-blur-xl print:hidden"
       style={{ background: 'var(--color-sidebar)' }}
     >
       <div className="flex gap-1 px-3 pt-3">
