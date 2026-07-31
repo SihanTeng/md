@@ -1,0 +1,21 @@
+pkgbase = md-bin
+	pkgdesc = Calm, cross-platform Markdown viewer and editor
+	pkgver = 0.2.0
+	pkgrel = 1
+	url = https://github.com/SihanTeng/md
+	arch = x86_64
+	license = LicenseRef-Unknown
+	depends = webkit2gtk-4.1
+	depends = gtk3
+	depends = libayatana-appindicator
+	optdepends = xdg-utils: open links and file paths
+	provides = md
+	conflicts = md
+	options = !strip
+	options = !debug
+	source = md-0.2.0-linux-x64.AppImage::https://github.com/SihanTeng/md/releases/download/v0.2.0/md-0.2.0-linux-x64.AppImage
+	source = md.desktop
+	sha256sums = SKIP
+	sha256sums = 587a8caeb2621ba153bde599d1a88543d42f0abd3ed5ce51d5bf641722abc82e
+
+pkgname = md-bin

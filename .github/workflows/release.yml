@@ -1,4 +1,4 @@
-# Build installers for macOS (DMG), Linux (AppImage + RPM), and Windows (MSI).
+# Build installers for macOS (DMG), Linux (AppImage + deb + RPM), and Windows (MSI).
 #
 # Triggers:
 #   - Push of a version tag: v0.1.0
@@ -9,15 +9,18 @@
 #   - Artifacts always upload to the workflow run.
 #   - Assets are attached to a published GitHub Release.
 #     Tag runs use the pushed tag; manual runs use v<app-version>.
-#   - OTA updates: `createUpdaterArtifacts` is enabled in tauri.conf.json, so
-#     tauri-action signs the bundles and publishes `latest.json` + signatures
-#     to the release. Requires repo secrets:
-#       TAURI_SIGNING_PRIVATE_KEY          (contents of ~/.tauri/md.key)
-#       TAURI_SIGNING_PRIVATE_KEY_PASSWORD (empty if the key has no password)
-#   - Homebrew: the `homebrew` job publishes Casks/md.rb to the
-#     SihanTeng/homebrew-md tap. Requires repo secret HOMEBREW_TAP_GITHUB_TOKEN
-#     (a PAT with contents:write on the tap repo); skipped when unset.
-#   - Code signing is optional — set secrets when ready (see comments below).
+#   - After the matrix finishes, `normalize-assets` renames installers to:
+#       md-{version}-{os}-{arch}.{ext}
+#     e.g. md-0.2.0-linux-x64.deb, md-0.2.0-macos-universal.dmg
+#   - Secrets registry (canonical names): .github/SECRETS.md
+#   - OTA: TAURI_SIGNING_PRIVATE_KEY (+ optional PASSWORD)
+#   - Distribution (DIST_* secrets; jobs skip when unset):
+#       homebrew    → DIST_HOMEBREW_TOKEN
+#       linux-repos → GitHub Pages (GITHUB_TOKEN only)
+#       aur         → DIST_AUR_SSH_KEY
+#       chocolatey  → DIST_CHOCOLATEY_API_KEY
+#       copr        → DIST_COPR_CONFIG + var DIST_COPR_PROJECT
+#   - Code signing (Apple/Windows) optional — see comments on the build step.
 
 name: Release
 
@@ -48,11 +51,12 @@ jobs:
             artifact_path: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
             platform_key: macos
 
-          - name: Linux AppImage + RPM
+          - name: Linux AppImage + deb + RPM
             os: ubuntu-24.04
-            args: --bundles appimage,rpm
+            args: --bundles appimage,deb,rpm
             artifact_path: |
               src-tauri/target/release/bundle/appimage/*.AppImage
+              src-tauri/target/release/bundle/deb/*.deb
               src-tauri/target/release/bundle/rpm/*.rpm
             platform_key: linux
 
@@ -136,23 +140,27 @@ jobs:
           releaseBody: |
             ## md installers
 
+            Filenames follow `md-{version}-{os}-{arch}.{ext}` after the release
+            normalize step finishes.
+
             | Platform | Package |
             |----------|---------|
-            | macOS | `.dmg` (universal), Homebrew (`brew install --cask sihanteng/md/md`) |
-            | Linux | `.AppImage`, `.rpm` (Fedora/RHEL: `sudo dnf install ./md-*.rpm`) |
-            | Windows | `.msi` |
+            | macOS | `md-*-macos-universal.dmg`, Homebrew (`brew tap SihanTeng/md && brew install --cask md`) |
+            | Linux | `md-*-linux-x64.AppImage`, `.deb`, `.rpm`; APT/DNF via https://sihanteng.github.io/md/ |
+            | Windows | `md-*-windows-x64.msi` |
 
             Built from commit `${{ github.sha }}`.
 
             This release also includes signed updater artifacts (`latest.json` +
             `.sig` files) — installed copies of md pick up new versions
             automatically (File → Check for Updates…). On Linux, OTA updates
-            apply to the AppImage; the RPM updates through `dnf`.
+            apply to the AppImage; deb/RPM update through the package manager.
 
             ### Install notes
             - **macOS**: open the DMG and drag **md** to Applications, or `brew install --cask sihanteng/md/md`. Unsigned builds may need System Settings → Privacy & Security → Open Anyway.
-            - **Linux (AppImage)**: `chmod +x md_*.AppImage && ./md_*.AppImage`
-            - **Linux (RPM)**: `sudo dnf install ./md-*.rpm`
+            - **Linux (AppImage)**: `chmod +x md-*-linux-x64.AppImage && ./md-*-linux-x64.AppImage`
+            - **Linux (deb)**: `sudo apt install ./md-*-linux-x64.deb`
+            - **Linux (RPM)**: `sudo dnf install ./md-*-linux-x64.rpm`
             - **Windows**: run the MSI installer (WebView2 bootstrapper downloads if needed).
           releaseDraft: false
           prerelease: false
@@ -165,13 +173,62 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-  homebrew:
-    name: Publish Homebrew cask
+  # tauri-action uploads platform-default names (mixed _ / - / arch labels).
+  # Rewrite the release to the canonical scheme once every matrix job has finished.
+  normalize-assets:
+    name: Normalize release asset names
     needs: build
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+
+      - name: Resolve release tag
+        id: meta
+        run: |
+          VERSION="$(jq -r '.version' src-tauri/tauri.conf.json)"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="v${VERSION}"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for release assets to settle
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Matrix jobs finish at different times; give the last upload a moment
+          # and poll until at least one installer asset exists.
+          TAG="${{ steps.meta.outputs.tag }}"
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            count="$(gh release view "$TAG" --repo "${{ github.repository }}" --json assets --jq '[.assets[].name | select(test("\\.(dmg|AppImage|deb|rpm|msi)$"))] | length')"
+            echo "installer assets visible: $count (attempt $i)"
+            if [[ "$count" -ge 3 ]]; then
+              exit 0
+            fi
+            sleep 6
+          done
+          echo "::warning::Fewer installer assets than expected; normalize will still run."
+
+      - name: Normalize and re-publish assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          chmod +x scripts/normalize-release-assets.sh
+          ./scripts/normalize-release-assets.sh publish "${{ steps.meta.outputs.tag }}" "${{ github.repository }}"
+
+  homebrew:
+    name: Publish Homebrew cask
+    needs: normalize-assets
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Resolve release tag and version
         id: meta
@@ -190,20 +247,41 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >
           gh release download "${{ steps.meta.outputs.tag }}"
-          --repo "${{ github.repository }}" --pattern "*.dmg"
+          --repo "${{ github.repository }}"
+          --pattern "md-*-macos-*.dmg"
           --dir dist-dmg --clobber
 
-      - name: Render cask and publish to tap
+      - name: Update in-repo cask (zero extra secrets)
         env:
-          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SHA="$(sha256sum dist-dmg/*.dmg | cut -d' ' -f1)"
+          ./scripts/update-homebrew-cask.sh "${{ steps.meta.outputs.version }}" "$SHA" Casks/md.rb
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/md.rb
+          if git diff --cached --quiet; then
+            echo "In-repo cask already up to date."
+          else
+            git commit -m "chore(homebrew): md ${{ steps.meta.outputs.version }}"
+            # Push to default branch so `brew tap SihanTeng/md https://github.com/SihanTeng/md` works
+            git push origin "HEAD:main" || git push origin "HEAD:${{ github.event.repository.default_branch }}" || {
+              echo "::warning::Could not push in-repo cask update (branch protection?). Tap repo publish may still run."
+            }
+          fi
+
+      - name: Publish to SihanTeng/homebrew-md tap
+        env:
+          DIST_HOMEBREW_TOKEN: ${{ secrets.DIST_HOMEBREW_TOKEN }}
           TAP_REPO: SihanTeng/homebrew-md
         run: |
-          if [[ -z "$HOMEBREW_TAP_GITHUB_TOKEN" ]]; then
-            echo "::notice::HOMEBREW_TAP_GITHUB_TOKEN not set — skipping Homebrew tap publish."
+          if [[ -z "${DIST_HOMEBREW_TOKEN:-}" ]]; then
+            echo "::notice::DIST_HOMEBREW_TOKEN not set — skip remote tap (in-repo cask was updated)."
+            echo "Users can still: brew tap SihanTeng/md https://github.com/SihanTeng/md && brew install --cask md"
             exit 0
           fi
           SHA="$(sha256sum dist-dmg/*.dmg | cut -d' ' -f1)"
-          git clone "https://x-access-token:${HOMEBREW_TAP_GITHUB_TOKEN}@github.com/${TAP_REPO}.git" tap
+          git clone "https://x-access-token:${DIST_HOMEBREW_TOKEN}@github.com/${TAP_REPO}.git" tap
           mkdir -p tap/Casks
           cp Casks/md.rb tap/Casks/md.rb
           ./scripts/update-homebrew-cask.sh "${{ steps.meta.outputs.version }}" "$SHA" tap/Casks/md.rb
@@ -212,22 +290,310 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add Casks/md.rb
           if git diff --cached --quiet; then
-            echo "Cask already up to date."
+            echo "Tap cask already up to date."
             exit 0
           fi
           git commit -m "md ${{ steps.meta.outputs.version }}"
           git push
 
+  linux-repos:
+    name: Publish APT + DNF (GitHub Pages)
+    needs: normalize-assets
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Resolve release tag and version
+        id: meta
+        run: |
+          VERSION="$(jq -r '.version' src-tauri/tauri.conf.json)"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="v${VERSION}"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Install repo tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev createrepo-c gzip
+
+      - name: Download deb + rpm from the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p dist-assets
+          gh release download "${{ steps.meta.outputs.tag }}" \
+            --repo "${{ github.repository }}" \
+            --pattern "md-*-linux-x64.deb" \
+            --pattern "md-*-linux-x64.rpm" \
+            --dir dist-assets --clobber
+          ls -la dist-assets
+
+      - name: Build static APT + RPM trees
+        env:
+          PAGES_BASE: https://sihanteng.github.io/md
+        run: |
+          chmod +x scripts/publish-linux-repos.sh
+          ./scripts/publish-linux-repos.sh \
+            "${{ steps.meta.outputs.version }}" \
+            dist-assets \
+            dist-repos
+
+      - name: Publish to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist-repos
+          destination_dir: .
+          keep_files: true
+          user_name: github-actions[bot]
+          user_email: github-actions[bot]@users.noreply.github.com
+          commit_message: "repos: md ${{ steps.meta.outputs.version }}"
+
+  aur:
+    name: Publish AUR md-bin
+    needs: normalize-assets
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Resolve release tag and version
+        id: meta
+        run: |
+          VERSION="$(jq -r '.version' src-tauri/tauri.conf.json)"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="v${VERSION}"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Skip when AUR key missing
+        id: gate
+        env:
+          DIST_AUR_SSH_KEY: ${{ secrets.DIST_AUR_SSH_KEY }}
+        run: |
+          if [[ -z "${DIST_AUR_SSH_KEY:-}" ]]; then
+            echo "::notice::DIST_AUR_SSH_KEY not set — skipping AUR publish. See .github/SECRETS.md"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download AppImage
+        if: steps.gate.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p dist-assets
+          gh release download "${{ steps.meta.outputs.tag }}" \
+            --repo "${{ github.repository }}" \
+            --pattern "md-*-linux-x64.AppImage" \
+            --dir dist-assets --clobber
+
+      - name: Update PKGBUILD and push to AUR
+        if: steps.gate.outputs.skip == 'false'
+        env:
+          DIST_AUR_SSH_KEY: ${{ secrets.DIST_AUR_SSH_KEY }}
+        run: |
+          chmod +x scripts/update-aur-pkgbuild.sh
+          APPIMAGE="$(ls dist-assets/md-*-linux-x64.AppImage | head -1)"
+          ./scripts/update-aur-pkgbuild.sh "${{ steps.meta.outputs.version }}" "$APPIMAGE"
+
+          # SSH for aur.archlinux.org
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DIST_AUR_SSH_KEY" > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+          cat >> ~/.ssh/config <<'EOF'
+          Host aur.archlinux.org
+            User aur
+            IdentityFile ~/.ssh/aur
+            StrictHostKeyChecking accept-new
+          EOF
+
+          git clone "ssh://aur@aur.archlinux.org/md-bin.git" aur-md-bin
+          cp packaging/aur/md-bin/PKGBUILD packaging/aur/md-bin/.SRCINFO packaging/aur/md-bin/md.desktop aur-md-bin/
+          cd aur-md-bin
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add PKGBUILD .SRCINFO md.desktop
+          if git diff --cached --quiet; then
+            echo "AUR package already up to date."
+            exit 0
+          fi
+          git commit -m "md-bin ${{ steps.meta.outputs.version }}"
+          git push
+
+  chocolatey:
+    name: Publish Chocolatey package
+    needs: normalize-assets
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Resolve release tag and version
+        id: meta
+        shell: bash
+        run: |
+          VERSION="$(jq -r '.version' src-tauri/tauri.conf.json)"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="v${VERSION}"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Skip when API key missing
+        id: gate
+        shell: bash
+        env:
+          DIST_CHOCOLATEY_API_KEY: ${{ secrets.DIST_CHOCOLATEY_API_KEY }}
+        run: |
+          if [[ -z "${DIST_CHOCOLATEY_API_KEY:-}" ]]; then
+            echo "::notice::DIST_CHOCOLATEY_API_KEY not set — skip Chocolatey push. See .github/SECRETS.md"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download MSI from the release
+        if: steps.gate.outputs.skip == 'false'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p dist-assets
+          gh release download "${{ steps.meta.outputs.tag }}" \
+            --repo "${{ github.repository }}" \
+            --pattern "md-*-windows-x64.msi" \
+            --dir dist-assets --clobber
+          ls -la dist-assets
+
+      - name: Pack and push to chocolatey.org
+        if: steps.gate.outputs.skip == 'false'
+        shell: bash
+        env:
+          DIST_CHOCOLATEY_API_KEY: ${{ secrets.DIST_CHOCOLATEY_API_KEY }}
+        run: |
+          MSI="$(ls dist-assets/md-*-windows-x64.msi | head -1)"
+          chmod +x scripts/update-chocolatey-package.sh scripts/publish-chocolatey.sh
+          ./scripts/publish-chocolatey.sh "${{ steps.meta.outputs.version }}" "$MSI"
+
+      - name: Upload nupkg artifact
+        if: steps.gate.outputs.skip == 'false'
+        uses: actions/upload-artifact@v7
+        with:
+          name: chocolatey-md-${{ steps.meta.outputs.version }}
+          path: packaging/chocolatey/md/*.nupkg
+          if-no-files-found: warn
+          retention-days: 30
+
+  copr:
+    name: Publish Fedora COPR package
+    needs: normalize-assets
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Resolve release tag and version
+        id: meta
+        run: |
+          VERSION="$(jq -r '.version' src-tauri/tauri.conf.json)"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="v${VERSION}"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Skip when COPR config missing
+        id: gate
+        env:
+          DIST_COPR_CONFIG: ${{ secrets.DIST_COPR_CONFIG }}
+        run: |
+          if [[ -z "${DIST_COPR_CONFIG:-}" ]]; then
+            echo "::notice::DIST_COPR_CONFIG not set — skip COPR publish. See .github/SECRETS.md"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install rpmbuild + copr-cli
+        if: steps.gate.outputs.skip == 'false'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm python3-pip python3-setuptools
+          # copr-cli from pip works on Ubuntu runners
+          pip3 install --user copr-cli
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Download AppImage from the release
+        if: steps.gate.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p dist-assets
+          gh release download "${{ steps.meta.outputs.tag }}" \
+            --repo "${{ github.repository }}" \
+            --pattern "md-*-linux-x64.AppImage" \
+            --dir dist-assets --clobber
+
+      - name: Build SRPM and submit to COPR
+        if: steps.gate.outputs.skip == 'false'
+        env:
+          DIST_COPR_CONFIG: ${{ secrets.DIST_COPR_CONFIG }}
+          DIST_COPR_PROJECT: ${{ vars.DIST_COPR_PROJECT }}
+        run: |
+          chmod +x scripts/update-copr-spec.sh scripts/publish-copr.sh
+          APPIMAGE="$(ls dist-assets/md-*-linux-x64.AppImage | head -1)"
+          if [[ -z "${DIST_COPR_PROJECT:-}" ]]; then
+            echo "::error::Set Actions variable DIST_COPR_PROJECT (e.g. YourFedoraUser/md)"
+            exit 1
+          fi
+          ./scripts/publish-copr.sh "${{ steps.meta.outputs.version }}" "$APPIMAGE" --project "$DIST_COPR_PROJECT"
+
+      - name: Upload SRPM artifact
+        if: steps.gate.outputs.skip == 'false'
+        uses: actions/upload-artifact@v7
+        with:
+          name: copr-md-srpm-${{ steps.meta.outputs.version }}
+          path: packaging/copr/*.src.rpm
+          if-no-files-found: warn
+          retention-days: 30
+
   release-summary:
     name: Release summary
-    needs: build
+    needs: [build, normalize-assets, homebrew, linux-repos, aur, chocolatey, copr]
     runs-on: ubuntu-24.04
     if: always()
     steps:
-      - name: Check matrix result
+      - name: Check results
         run: |
+          fail=0
           if [ "${{ needs.build.result }}" != "success" ]; then
-            echo "One or more installer builds failed: ${{ needs.build.result }}"
-            exit 1
+            echo "Installer builds failed: ${{ needs.build.result }}"; fail=1
           fi
-          echo "All platform installers built successfully."
+          if [ "${{ needs.normalize-assets.result }}" != "success" ]; then
+            echo "Asset normalization failed: ${{ needs.normalize-assets.result }}"; fail=1
+          fi
+          echo "homebrew:     ${{ needs.homebrew.result }}"
+          echo "linux-repos:  ${{ needs.linux-repos.result }}"
+          echo "aur:          ${{ needs.aur.result }}"
+          echo "chocolatey:   ${{ needs.chocolatey.result }}"
+          echo "copr:         ${{ needs.copr.result }}"
+          if [ "$fail" -ne 0 ]; then exit 1; fi
+          echo "Release pipeline completed."

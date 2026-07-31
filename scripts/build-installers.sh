@@ -4,13 +4,14 @@
 # Usage:
 #   ./scripts/build-installers.sh              # current host OS only
 #   ./scripts/build-installers.sh --all-hint   # print how to get all three packages
-#   ./scripts/build-installers.sh linux        # force AppImage + RPM (Linux host required)
+#   ./scripts/build-installers.sh linux        # force AppImage + deb + RPM (Linux host)
 #   ./scripts/build-installers.sh macos        # force DMG (macOS host required)
 #   ./scripts/build-installers.sh windows      # force MSI (Windows host required)
 #   ./scripts/build-installers.sh --list       # list artifacts from last build
 #
-# Cross-OS note: Tauri cannot cross-compile DMG / AppImage / MSI. Use GitHub
-# Actions (.github/workflows/release.yml) to produce all three from one tag.
+# Cross-OS note: Tauri cannot cross-compile these bundles. Use GitHub Actions
+# (.github/workflows/release.yml) to produce every package from one tag.
+# Release assets are renamed to: md-{version}-{os}-{arch}.{ext}
 
 set -euo pipefail
 
@@ -47,7 +48,8 @@ list_artifacts() {
     found=1
     ls -lh "$f"
   done < <(find src-tauri/target -type f \( \
-      -name '*.dmg' -o -name '*.AppImage' -o -name '*.msi' -o -name '*.rpm' \
+      -name '*.dmg' -o -name '*.AppImage' -o -name '*.msi' \
+      -o -name '*.rpm' -o -name '*.deb' \
     \) -print0 2>/dev/null || true)
 
   if [[ "$found" -eq 0 ]]; then
@@ -58,13 +60,15 @@ list_artifacts() {
 
 print_all_hint() {
   cat <<EOF
-${CYAN}Building all installers (DMG + AppImage + MSI)${RESET}
+${CYAN}Building all installers (DMG + AppImage + deb + RPM + MSI)${RESET}
 
 Tauri must build each package on its native OS:
 
-  macOS   →  .dmg              (this machine must be macOS, or use CI)
-  Linux   →  .AppImage + .rpm  (this machine must be Linux, or use CI)
-  Windows →  .msi              (this machine must be Windows, or use CI)
+  macOS   →  .dmg                         (this machine must be macOS, or use CI)
+  Linux   →  .AppImage + .deb + .rpm      (this machine must be Linux, or use CI)
+  Windows →  .msi                         (this machine must be Windows, or use CI)
+
+Release filenames (after CI normalize): md-{version}-{os}-{arch}.{ext}
 
 Recommended: push a version tag and let GitHub Actions build everything:
 
@@ -106,7 +110,7 @@ ensure_deps() {
 }
 
 build_linux() {
-  log "Building Linux AppImage + RPM…"
+  log "Building Linux AppImage + deb + RPM…"
   # AppImage tooling often needs these at runtime of the bundler
   if command -v apt-get >/dev/null 2>&1; then
     if ! pkg-config --exists webkit2gtk-4.1 2>/dev/null; then
@@ -117,9 +121,10 @@ build_linux() {
   fi
   # RPM bundling needs rpmbuild (Debian/Ubuntu: sudo apt-get install rpm)
   require_cmd rpmbuild
-  bun run tauri -- build --bundles appimage,rpm
+  bun run tauri -- build --bundles appimage,deb,rpm
   ok "Linux bundle build finished."
   find src-tauri/target/release/bundle/appimage -name '*.AppImage' -print 2>/dev/null || true
+  find src-tauri/target/release/bundle/deb -name '*.deb' -print 2>/dev/null || true
   find src-tauri/target/release/bundle/rpm -name '*.rpm' -print 2>/dev/null || true
 }
 

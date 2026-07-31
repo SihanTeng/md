@@ -92,18 +92,60 @@ Most Markdown tools force a choice: a heavy knowledge base, a split source/previ
 
 ## Install
 
-Download the latest build for your system from the
+### One-liner
+
+**macOS / Linux:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/SihanTeng/md/main/install.sh | bash
+```
+
+**Windows** (PowerShell):
+
+```powershell
+irm https://raw.githubusercontent.com/SihanTeng/md/main/install.ps1 | iex
+```
+
+The scripts download the latest [GitHub Release](https://github.com/SihanTeng/md/releases/latest) for your platform (DMG → Applications, AppImage → `~/.local/bin/md`, MSI → Windows Installer). Pin a version with `MD_VERSION=v0.2.0`.
+
+### Manual download
+
+Download a package from the
 [**Releases**](https://github.com/SihanTeng/md/releases/latest) page.
+
+Installer files use a single naming scheme:
+
+```text
+md-{version}-{os}-{arch}.{ext}
+```
+
+| File | Platform |
+| --- | --- |
+| `md-*-macos-universal.dmg` | macOS (Apple silicon + Intel) |
+| `md-*-linux-x64.AppImage` | Linux (portable) |
+| `md-*-linux-x64.deb` | Debian / Ubuntu |
+| `md-*-linux-x64.rpm` | Fedora / RHEL |
+| `md-*-windows-x64.msi` | Windows |
+
+(Also on each release: tiny `.sig` files and `latest.json` for automatic updates — not installers.)
 
 ### macOS
 
 **Homebrew** (recommended):
 
 ```bash
-brew install --cask sihanteng/md/md
+brew tap SihanTeng/md
+brew install --cask md
 ```
 
-**Or** download the universal `.dmg`, open it, and drag **md** into
+If the tap is not yet mirrored, use this repo directly:
+
+```bash
+brew tap SihanTeng/md https://github.com/SihanTeng/md
+brew install --cask md
+```
+
+**Or** download `md-*-macos-universal.dmg`, open it, and drag **md** into
 **Applications**. Works on Apple silicon and Intel Macs (macOS 10.15+).
 
 If macOS blocks an unsigned build: **System Settings → Privacy & Security →
@@ -111,26 +153,69 @@ Open Anyway**.
 
 ### Linux
 
-**Fedora / RHEL:**
+**Debian / Ubuntu (APT repo, no account):**
 
 ```bash
-sudo dnf install ./md-*.rpm
+echo "deb [trusted=yes] https://sihanteng.github.io/md/apt ./" | sudo tee /etc/apt/sources.list.d/md.list
+sudo apt update
+sudo apt install md
 ```
 
-**Other distributions** — download the `.AppImage`, then:
+**Fedora (COPR — after you enable the project):**
 
 ```bash
-chmod +x md_*.AppImage
-./md_*.AppImage
+sudo dnf copr enable <your-fedora-user>/md
+sudo dnf install md
+```
+
+**Fedora / RHEL (static DNF repo, no account):**
+
+```bash
+sudo tee /etc/yum.repos.d/md.repo <<'EOF'
+[md]
+name=md
+baseurl=https://sihanteng.github.io/md/rpm
+enabled=1
+gpgcheck=0
+EOF
+sudo dnf install md
+```
+
+**Arch (AUR):**
+
+```bash
+yay -S md-bin
+```
+
+**One-off packages** from [Releases](https://github.com/SihanTeng/md/releases/latest):
+
+```bash
+# Debian / Ubuntu
+sudo apt install ./md-*-linux-x64.deb
+
+# Fedora / RHEL
+sudo dnf install ./md-*-linux-x64.rpm
+
+# Portable AppImage
+chmod +x md-*-linux-x64.AppImage && ./md-*-linux-x64.AppImage
 ```
 
 ### Windows
 
-Download the `.msi` installer and run it. If WebView2 is missing, the installer
-can fetch it for you.
+**Chocolatey:**
+
+```powershell
+choco install md
+```
+
+**Or** download `md-*-windows-x64.msi` and run it. If WebView2 is missing, the
+installer can fetch it for you.
 
 If SmartScreen warns about an unsigned build, choose **More info → Run anyway**
 after you have verified the download came from this repository’s Releases page.
+
+Package-manager coverage (Homebrew, APT, DNF/COPR, AUR, Chocolatey) is
+documented in [docs/distribution.md](docs/distribution.md).
 
 ## Getting started
 
@@ -165,8 +250,9 @@ Updates…**.
 
 | Install method | How updates arrive |
 | --- | --- |
-| macOS (DMG or Homebrew), Windows (MSI), Linux (AppImage) | In-app, signed download from GitHub Releases |
-| Linux (RPM) | Package manager — e.g. `sudo dnf upgrade md` |
+| macOS (DMG or Homebrew), Windows (MSI / Chocolatey), Linux (AppImage) | In-app, signed download from GitHub Releases |
+| Linux APT / static DNF / COPR | `apt` / `dnf upgrade md` |
+| AUR (`md-bin`) | `yay -Syu` (rebuilds from new AppImage) |
 
 ## Contributing
 
@@ -199,15 +285,11 @@ bun run typecheck
 ### Maintainers
 
 `bun run version` bumps the version, tags, and triggers the Release workflow
-(DMG / AppImage / RPM / MSI, updater signatures, Homebrew cask).
+(installers, name normalize, OTA signatures, package managers).
 
-Release secrets:
+**Secrets & variables (single registry):** [`.github/SECRETS.md`](.github/SECRETS.md)
 
-| Secret | Purpose |
-| --- | --- |
-| `TAURI_SIGNING_PRIVATE_KEY` | Updater signing key (`~/.tauri/md.key`) |
-| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Key password (empty if none) |
-| `HOMEBREW_TAP_GITHUB_TOKEN` | Publish cask to [`SihanTeng/homebrew-md`](https://github.com/SihanTeng/homebrew-md) |
+Distribution how-tos: [`docs/distribution.md`](docs/distribution.md)
 
 ## Community standards
 

@@ -1,0 +1,33 @@
+# Maintainer: SihanTeng <https://github.com/SihanTeng>
+# Prebuilt package from GitHub Releases (AppImage).
+#
+# This file is a template: scripts/update-aur-pkgbuild.sh rewrites pkgver and
+# sha256sums on each release. Push to AUR with:
+#   ssh://aur@aur.archlinux.org/md-bin.git
+#
+# shellcheck disable=SC2034
+pkgname=md-bin
+pkgver=0.2.0
+pkgrel=1
+pkgdesc='Calm, cross-platform Markdown viewer and editor'
+arch=('x86_64')
+url='https://github.com/SihanTeng/md'
+license=('LicenseRef-Unknown')
+depends=('webkit2gtk-4.1' 'gtk3' 'libayatana-appindicator')
+optdepends=('xdg-utils: open links and file paths')
+provides=('md')
+conflicts=('md')
+options=('!strip' '!debug')
+source=(
+  "md-${pkgver}-linux-x64.AppImage::https://github.com/SihanTeng/md/releases/download/v${pkgver}/md-${pkgver}-linux-x64.AppImage"
+  "md.desktop"
+)
+sha256sums=(
+  'SKIP'
+  'SKIP'
+)
+
+package() {
+  install -Dm755 "md-${pkgver}-linux-x64.AppImage" "${pkgdir}/usr/bin/md"
+  install -Dm644 md.desktop "${pkgdir}/usr/share/applications/md.desktop"
+}
