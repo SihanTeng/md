@@ -74,8 +74,6 @@ jobs:
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
-        with:
-          cache: true
 
       - name: Install Rust stable (macOS universal targets)
         if: matrix.platform_key == 'macos'
