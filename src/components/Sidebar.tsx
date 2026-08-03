@@ -1,5 +1,5 @@
 import type { Editor } from '@tiptap/react';
-import { Clock, FileText, Folder, ListTree, X } from 'lucide-react';
+import { Clock, Folder, ListTree, X } from 'lucide-react';
 import { scrollToPos } from '../lib/outline';
 import { type OutlineItem, type RecentFile, useDocumentStore } from '../stores/documentStore';
 import { FilesPane } from './FilesPane';
@@ -14,8 +14,6 @@ export function Sidebar({ editor, onOpenRecent, onHideRecent }: Props) {
   const open = useDocumentStore((s) => s.sidebarOpen);
   const outline = useDocumentStore((s) => s.outline);
   const recent = useDocumentStore((s) => s.recent);
-  const title = useDocumentStore((s) => s.title);
-  const dirty = useDocumentStore((s) => s.dirty);
   const mode = useDocumentStore((s) => s.sidebarMode);
   const setMode = useDocumentStore((s) => s.setSidebarMode);
 
@@ -46,8 +44,6 @@ export function Sidebar({ editor, onOpenRecent, onHideRecent }: Props) {
           editor={editor}
           outline={outline}
           recent={recent}
-          title={title}
-          dirty={dirty}
           onOpenRecent={onOpenRecent}
           onHideRecent={onHideRecent}
         />
@@ -87,35 +83,18 @@ function OutlinePane({
   editor,
   outline,
   recent,
-  title,
-  dirty,
   onOpenRecent,
   onHideRecent,
 }: {
   editor: Editor | null;
   outline: OutlineItem[];
   recent: RecentFile[];
-  title: string;
-  dirty: boolean;
   onOpenRecent: (path: string) => void;
   onHideRecent: (path: string) => void;
 }) {
   return (
     <>
-      <div className="px-3 pb-2 pt-3">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--color-ink-tertiary)]">
-          Document
-        </div>
-        <div className="mt-1.5 flex items-center gap-2 rounded-[var(--radius-md)] px-2 py-1.5 text-[13px] font-medium text-[var(--color-ink)]">
-          <FileText size={14} className="shrink-0 text-[var(--color-accent)]" strokeWidth={1.75} />
-          <span className="truncate">
-            {title}
-            {dirty ? <span className="ml-1 text-[var(--color-ink-tertiary)]">•</span> : null}
-          </span>
-        </div>
-      </div>
-
-      <div className="mac-scroll min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+      <div className="mac-scroll min-h-0 flex-1 overflow-y-auto px-2 pb-3 pt-3">
         <Section label="Outline" icon={<ListTree size={12} strokeWidth={2} />}>
           {outline.length === 0 ? (
             <EmptyHint>Headings appear here</EmptyHint>
@@ -133,34 +112,39 @@ function OutlinePane({
             ))
           )}
         </Section>
+      </div>
 
-        <Section label="Recent" icon={<Clock size={12} strokeWidth={2} />}>
-          {recent.length === 0 ? (
-            <EmptyHint>No recent files</EmptyHint>
-          ) : (
-            recent.map((f) => (
-              <div key={f.path} className="group relative">
-                <button
-                  type="button"
-                  title={f.path}
-                  onClick={() => onOpenRecent(f.path)}
-                  className="block w-full truncate rounded-[var(--radius-sm)] px-2 py-1 pr-6 text-left text-[12.5px] text-[var(--color-ink-secondary)] hover:bg-[var(--color-hover)] hover:text-[var(--color-ink)]"
-                >
-                  {f.name}
-                </button>
-                <button
-                  type="button"
-                  title={`Hide ${f.name} from recent`}
-                  aria-label={`Hide ${f.name} from recent`}
-                  onClick={() => onHideRecent(f.path)}
-                  className="absolute top-1/2 right-1 -translate-y-1/2 rounded-[var(--radius-sm)] p-0.5 text-[var(--color-ink-tertiary)] opacity-0 hover:bg-[var(--color-active)] hover:text-[var(--color-ink)] group-hover:opacity-100"
-                >
-                  <X size={12} strokeWidth={2} />
-                </button>
-              </div>
-            ))
-          )}
-        </Section>
+      {/* Recent is pinned to the sidebar bottom with its own scroll area */}
+      <div className="shrink-0 border-t border-[var(--color-hairline)] px-2 pb-2">
+        <div className="mac-scroll max-h-[35vh] overflow-y-auto">
+          <Section label="Recent" icon={<Clock size={12} strokeWidth={2} />}>
+            {recent.length === 0 ? (
+              <EmptyHint>No recent files</EmptyHint>
+            ) : (
+              recent.map((f) => (
+                <div key={f.path} className="group relative">
+                  <button
+                    type="button"
+                    title={f.path}
+                    onClick={() => onOpenRecent(f.path)}
+                    className="block w-full truncate rounded-[var(--radius-sm)] px-2 py-1 pr-6 text-left text-[12.5px] text-[var(--color-ink-secondary)] hover:bg-[var(--color-hover)] hover:text-[var(--color-ink)]"
+                  >
+                    {f.name}
+                  </button>
+                  <button
+                    type="button"
+                    title={`Hide ${f.name} from recent`}
+                    aria-label={`Hide ${f.name} from recent`}
+                    onClick={() => onHideRecent(f.path)}
+                    className="absolute top-1/2 right-1 -translate-y-1/2 rounded-[var(--radius-sm)] p-0.5 text-[var(--color-ink-tertiary)] opacity-0 hover:bg-[var(--color-active)] hover:text-[var(--color-ink)] group-hover:opacity-100"
+                  >
+                    <X size={12} strokeWidth={2} />
+                  </button>
+                </div>
+              ))
+            )}
+          </Section>
+        </div>
       </div>
     </>
   );

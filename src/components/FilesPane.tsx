@@ -214,7 +214,7 @@ export function FilesPane({ onOpenFile }: Props) {
               ) : (
                 <FileText size={13} className="shrink-0" strokeWidth={1.75} />
               )}
-              <span className="truncate">{entry.name}</span>
+              <span className="min-w-0 truncate">{entry.name}</span>
             </button>
           ))}
           {listing && listing.entries.length === 0 && !error ? (
@@ -236,9 +236,9 @@ export function FilesPane({ onOpenFile }: Props) {
           }}
         >
           <div
-            className="absolute min-w-[180px] rounded-[var(--radius-md)] border border-[var(--color-hairline)] bg-[var(--color-surface)] p-1 shadow-[var(--shadow-popover)]"
+            className="absolute w-[200px] rounded-[var(--radius-md)] border border-[var(--color-hairline)] bg-[var(--color-surface)] p-1 shadow-[var(--shadow-popover)]"
             style={{
-              left: Math.min(menu.x, window.innerWidth - 190),
+              left: Math.min(menu.x, window.innerWidth - 210),
               top: Math.min(menu.y, window.innerHeight - 170),
             }}
           >
@@ -252,12 +252,12 @@ export function FilesPane({ onOpenFile }: Props) {
               }}
             >
               <FilePlus size={13} className="shrink-0" strokeWidth={1.75} />
-              <span className="truncate">New File…</span>
+              <span className="min-w-0 truncate">New File…</span>
             </button>
             {menu.isDir ? null : (
               <button type="button" className={rowClass} onClick={() => void copyTarget(menu)}>
                 <Copy size={13} className="shrink-0" strokeWidth={1.75} />
-                <span className="truncate">Copy File</span>
+                <span className="min-w-0 truncate">Copy File</span>
               </button>
             )}
             <div className="mx-1 my-1 h-px bg-[var(--color-hairline)]" />
@@ -271,7 +271,7 @@ export function FilesPane({ onOpenFile }: Props) {
               }}
             >
               <FolderOpen size={13} className="shrink-0" strokeWidth={1.75} />
-              <span className="truncate">
+              <span className="min-w-0 truncate">
                 {menu.isDir ? 'Open in File Manager' : 'Open Containing Folder'}
               </span>
             </button>
@@ -280,7 +280,7 @@ export function FilesPane({ onOpenFile }: Props) {
                 <div className="mx-1 my-1 h-px bg-[var(--color-hairline)]" />
                 <button type="button" className={rowClass} onClick={() => void deleteTarget(menu)}>
                   <Trash2 size={13} className="shrink-0" strokeWidth={1.75} />
-                  <span className="truncate">Move to Trash</span>
+                  <span className="min-w-0 truncate">Move to Trash</span>
                 </button>
               </>
             )}
