@@ -1,7 +1,8 @@
-import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { beforeEach, describe, expect, it } from 'vitest';
+import rustMenuSource from '../../src-tauri/src/lib.rs?raw';
+import appSource from '../App.tsx?raw';
+import menuBarSource from '../components/MenuBar.tsx?raw';
+import toolbarSource from '../components/Toolbar.tsx?raw';
 import { commandForCombo, effectiveCombo, useKeybindingStore } from '../stores/keybindingStore';
 import { COMMANDS, comboFromEvent, formatCombo, hasModifier } from './keybindings';
 
@@ -98,16 +99,14 @@ describe('keybindingStore', () => {
 // in-window MenuBar/Toolbar, and the native macOS menu in Rust — from
 // drifting away from it (or from each other).
 describe('command catalog coverage', () => {
-  const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-  const read = (rel: string) => readFileSync(resolve(root, rel), 'utf8');
   const catalogIds = new Set<string>(COMMANDS.map((c) => c.commandId));
 
   it('every id handled by handleMenuCommand (App.tsx) is in the catalog', () => {
     // Command ids follow the `<section>_<action>` convention; the prefix
     // keeps this guard from tripping on unrelated switch cases in App.tsx.
-    const dispatched = [
-      ...read('src/App.tsx').matchAll(/case '((?:file|edit|view|app)_[a-z_]+)':/g),
-    ].map((m) => m[1]);
+    const dispatched = [...appSource.matchAll(/case '((?:file|edit|view|app)_[a-z_]+)':/g)].map(
+      (m) => m[1],
+    );
     expect(dispatched.length).toBeGreaterThan(0);
     for (const id of dispatched) {
       expect(catalogIds.has(id), `'${id}' is dispatched but missing from COMMANDS`).toBe(true);
@@ -115,8 +114,9 @@ describe('command catalog coverage', () => {
   });
 
   it('every command id dispatched by MenuBar/Toolbar is in the catalog', () => {
-    for (const file of ['src/components/MenuBar.tsx', 'src/components/Toolbar.tsx']) {
-      const dispatched = [...read(file).matchAll(/(?:onCommand|item)\('([a-z_]+)'\)/g)].map(
+    const sources = { 'MenuBar.tsx': menuBarSource, 'Toolbar.tsx': toolbarSource };
+    for (const [file, source] of Object.entries(sources)) {
+      const dispatched = [...source.matchAll(/(?:onCommand|item)\('([a-z_]+)'\)/g)].map(
         (m) => m[1],
       );
       expect(dispatched.length).toBeGreaterThan(0);
@@ -128,9 +128,7 @@ describe('command catalog coverage', () => {
 
   it('native macOS menu items (Rust) match catalog ids and labels', () => {
     const items = [
-      ...read('src-tauri/src/lib.rs').matchAll(
-        /MenuItem::with_id\(\s*app,\s*"([a-z_]+)",\s*"([^"]+)"/g,
-      ),
+      ...rustMenuSource.matchAll(/MenuItem::with_id\(\s*app,\s*"([a-z_]+)",\s*"([^"]+)"/g),
     ].map((m) => ({ id: m[1], label: m[2] }));
     expect(items.length).toBeGreaterThan(0);
     for (const { id, label } of items) {
