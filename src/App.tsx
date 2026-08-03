@@ -14,6 +14,7 @@ import { confirmDiscard, useDocumentActions } from './hooks/useDocumentActions';
 import { comboFromEvent, hasModifier } from './lib/keybindings';
 import { markdownToHtml } from './lib/markdown/io';
 import { customChrome } from './lib/platform';
+import { shouldRouteSelectAll } from './lib/selectAll';
 import { closeWindow, forceQuit } from './lib/tauri/files';
 import { applyThemeClass, loadThemePreference, saveThemePreference } from './lib/theme';
 import { checkForUpdates } from './lib/updater';
@@ -213,6 +214,22 @@ export default function App() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [handleMenuCommand]);
+
+  // Ctrl+A from non-editable UI (chrome, sidebar, buttons) reroutes to the
+  // editor's select-all instead of becoming a page-wide selection that
+  // would include the document title. Inside the editor ProseMirror does
+  // this natively; inside inputs the field keeps its own local select-all.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() !== 'a' || !(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey)
+        return;
+      if (!shouldRouteSelectAll(e.target) || !editor) return;
+      e.preventDefault();
+      editor.chain().focus().selectAll().run();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [editor]);
 
   const onReady = useCallback((ed: Editor) => {
     setEditor(ed);

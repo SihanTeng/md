@@ -75,6 +75,13 @@ body {
   user-select: none;
 }
 
+/* UI chrome is not selectable (body above); editable fields — doc title,
+   find/replace, link editor — keep text selection so editing works */
+input,
+textarea {
+  user-select: text;
+}
+
 button {
   font-family: inherit;
 }
