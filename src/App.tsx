@@ -4,6 +4,7 @@ import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import welcomeMarkdown from './assets/welcome.md?raw';
 import { FindReplaceOverlay } from './components/Editor/FindReplaceOverlay';
 import { MarkdownEditor } from './components/Editor/MarkdownEditor';
+import { SlashMenuOverlay } from './components/Editor/SlashMenuOverlay';
 import { EmptyState } from './components/EmptyState';
 import { MenuBar } from './components/MenuBar';
 import { ShortcutsOverlay } from './components/ShortcutsOverlay';
@@ -272,6 +273,7 @@ export default function App() {
               {editor && findOpen ? (
                 <FindReplaceOverlay editor={editor} onClose={() => setFindOpen(false)} />
               ) : null}
+              {editor ? <SlashMenuOverlay editor={editor} /> : null}
             </>
           )}
         </main>

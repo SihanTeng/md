@@ -4,7 +4,7 @@ A calm, macOS-inspired markdown editor.
 
 ## Write naturally
 
-Select text and use the toolbar — or keyboard shortcuts — to format.
+Select text and use the toolbar — or keyboard shortcuts — to format. On a new line, type `/` for a menu of blocks: headings, lists, tables, and more.
 
 - Bullet lists
 - **Bold** and *italic*

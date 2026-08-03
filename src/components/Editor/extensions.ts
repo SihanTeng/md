@@ -11,6 +11,7 @@ import { FindReplace } from './findReplace';
 import { createImage } from './image';
 import { LivePreview } from './livePreview';
 import { MdCommentBlock, MdCommentInline } from './mdComment';
+import { SlashCommands } from './slashCommands';
 import { TableFromPipes } from './tableFromPipes';
 
 // Lightweight highlight.js core with the common grammar bundle (~40 languages)
@@ -88,6 +89,8 @@ export function createExtensions() {
     MdCommentBlock,
     MdCommentInline,
     FindReplace,
+    // "/" menu: state-only plugin; SlashMenuOverlay renders and handles keys
+    SlashCommands,
     createImage(),
     LivePreview,
     ConvertOnLeave,
