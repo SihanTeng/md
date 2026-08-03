@@ -1,7 +1,9 @@
 import { getCurrentWindow, type Window } from '@tauri-apps/api/window';
 import type { Editor } from '@tiptap/react';
 import { useEffect, useRef, useState } from 'react';
+import { formatCombo } from '../lib/keybindings';
 import { customChrome } from '../lib/platform';
+import { effectiveCombo, useKeybindingStore } from '../stores/keybindingStore';
 
 const BAR_HEIGHT = 32;
 
@@ -75,7 +77,22 @@ function MenuBarImpl({ editor, onCommand }: MenuBarProps) {
     };
   }, [openId]);
 
-  const sections = buildSections(editor, onCommand, appWindow);
+  const overrides = useKeybindingStore((s) => s.overrides);
+
+  // Alt+F / Alt+E / Alt+V open the menus, like a native menubar
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      const id = { f: 'file', e: 'edit', v: 'view' }[e.key.toLowerCase()];
+      if (!id) return;
+      e.preventDefault();
+      setOpenId((cur) => (cur === id ? null : id));
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  const sections = buildSections(editor, onCommand, appWindow, overrides);
 
   // Drag the window from the bar's empty areas; double-click maximizes.
   const onBarMouseDown = (e: React.MouseEvent) => {
@@ -174,6 +191,9 @@ function MenuDropdown({
     <div className="relative h-full">
       <button
         type="button"
+        title={`${section.label} (Alt+${section.label[0]})`}
+        aria-haspopup="menu"
+        aria-expanded={open}
         onClick={() => (open ? onClose() : onOpen())}
         onMouseEnter={() => {
           if (anyOpen && !open) onOpen();
@@ -330,8 +350,14 @@ function buildSections(
   editor: Editor | null,
   onCommand: (id: string) => void,
   appWindow: Window,
+  overrides: Record<string, string>,
 ): MenuSection[] {
   const sep: MenuEntry = { kind: 'separator' };
+  // Accelerator hint for a rebindable registry command
+  const hint = (commandId: string) => {
+    const combo = effectiveCombo(commandId, overrides);
+    return combo ? formatCombo(combo) : undefined;
+  };
   const clipboard = (cmd: 'cut' | 'copy') => () => {
     document.execCommand(cmd);
     editor?.chain().focus().run();
@@ -354,19 +380,29 @@ function buildSections(
       id: 'file',
       label: 'File',
       entries: [
-        { kind: 'item', label: 'New', shortcut: 'Ctrl+N', onSelect: () => onCommand('file_new') },
+        {
+          kind: 'item',
+          label: 'New',
+          shortcut: hint('file_new'),
+          onSelect: () => onCommand('file_new'),
+        },
         {
           kind: 'item',
           label: 'Open…',
-          shortcut: 'Ctrl+O',
+          shortcut: hint('file_open'),
           onSelect: () => onCommand('file_open'),
         },
         sep,
-        { kind: 'item', label: 'Save', shortcut: 'Ctrl+S', onSelect: () => onCommand('file_save') },
+        {
+          kind: 'item',
+          label: 'Save',
+          shortcut: hint('file_save'),
+          onSelect: () => onCommand('file_save'),
+        },
         {
           kind: 'item',
           label: 'Save As…',
-          shortcut: 'Ctrl+Shift+S',
+          shortcut: hint('file_save_as'),
           onSelect: () => onCommand('file_save_as'),
         },
         sep,
@@ -439,7 +475,7 @@ function buildSections(
         {
           kind: 'item',
           label: 'Find…',
-          shortcut: 'Ctrl+F',
+          shortcut: hint('edit_find'),
           onSelect: () => onCommand('edit_find'),
         },
         { kind: 'item', label: 'Copy as HTML', onSelect: () => onCommand('edit_copy_html') },
@@ -452,8 +488,14 @@ function buildSections(
         {
           kind: 'item',
           label: 'Present',
-          shortcut: 'Ctrl+Shift+P',
+          shortcut: hint('view_present'),
           onSelect: () => onCommand('view_present'),
+        },
+        {
+          kind: 'item',
+          label: 'Keyboard Shortcuts',
+          shortcut: hint('app_shortcuts'),
+          onSelect: () => onCommand('app_shortcuts'),
         },
       ],
     },

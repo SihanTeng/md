@@ -14,6 +14,9 @@ export default defineConfig(async () => ({
   },
   test: {
     environment: 'jsdom',
+    // Keep vitest out of vendored reference repos (ref/) — the default
+    // exclude list is replaced, so node_modules/dist are repeated here
+    exclude: ['**/node_modules/**', '**/dist/**', '**/ref/**'],
   },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`

@@ -6,16 +6,19 @@ import { FindReplaceOverlay } from './components/Editor/FindReplaceOverlay';
 import { MarkdownEditor } from './components/Editor/MarkdownEditor';
 import { EmptyState } from './components/EmptyState';
 import { MenuBar } from './components/MenuBar';
+import { ShortcutsOverlay } from './components/ShortcutsOverlay';
 import { Sidebar } from './components/Sidebar';
 import { StatusBar } from './components/StatusBar';
 import { Toolbar } from './components/Toolbar';
 import { confirmDiscard, useDocumentActions } from './hooks/useDocumentActions';
+import { comboFromEvent, hasModifier } from './lib/keybindings';
 import { markdownToHtml } from './lib/markdown/io';
 import { customChrome } from './lib/platform';
 import { closeWindow, forceQuit } from './lib/tauri/files';
 import { applyThemeClass, loadThemePreference, saveThemePreference } from './lib/theme';
 import { checkForUpdates } from './lib/updater';
 import { useDocumentStore } from './stores/documentStore';
+import { commandForCombo } from './stores/keybindingStore';
 
 // Lazy: keeps remotion/@remotion/player out of the main bundle — they are
 // only fetched when a presentation is actually opened
@@ -28,6 +31,7 @@ const STARTER_MD = welcomeMarkdown;
 export default function App() {
   const [editor, setEditor] = useState<Editor | null>(null);
   const [findOpen, setFindOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const hasDocument = useDocumentStore((s) => s.hasDocument);
   const contentHtml = useDocumentStore((s) => s.contentHtml);
   const revision = useDocumentStore((s) => s.revision);
@@ -171,6 +175,9 @@ export default function App() {
         case 'view_present':
           actions.present();
           break;
+        case 'app_shortcuts':
+          setShortcutsOpen(true);
+          break;
         case 'app_check_updates':
           void checkForUpdates(true);
           break;
@@ -192,55 +199,26 @@ export default function App() {
     return () => unlisten?.();
   }, [handleMenuCommand]);
 
-  // Global shortcuts
+  // Global shortcuts, driven by the rebindable registry (keybindingStore).
+  // On macOS the native menu's own accelerators still work alongside these.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const mod = e.metaKey || e.ctrlKey;
-      if (!mod) return;
-      const key = e.key.toLowerCase();
-      if (key === 'n' && !e.shiftKey) {
-        e.preventDefault();
-        if (!useDocumentStore.getState().hasDocument) {
-          startWithWelcomeDoc();
-        } else {
-          void actions.newDocument();
-        }
-      } else if (key === 'o' && !e.shiftKey) {
-        e.preventDefault();
-        void actions.openDocument();
-      } else if (key === 's' && e.shiftKey) {
-        e.preventDefault();
-        void actions.saveDocumentAs();
-      } else if (key === 's' && !e.shiftKey) {
-        e.preventDefault();
-        void actions.saveDocument();
-      } else if (key === 'f' && !e.shiftKey) {
-        // Primary path on Linux/Windows/browser; on macOS the native menu
-        // accelerator usually intercepts Ctrl/Cmd+F before this fires
-        e.preventDefault();
-        if (useDocumentStore.getState().hasDocument) setFindOpen(true);
-      } else if (key === 'p' && e.shiftKey) {
-        e.preventDefault();
-        actions.present();
-      }
+      const combo = comboFromEvent(e);
+      if (!combo || !hasModifier(combo)) return;
+      const commandId = commandForCombo(combo);
+      if (!commandId) return;
+      e.preventDefault();
+      handleMenuCommand(commandId);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [actions, startWithWelcomeDoc]);
+  }, [handleMenuCommand]);
 
   const onReady = useCallback((ed: Editor) => {
     setEditor(ed);
   }, []);
 
   const showEmpty = !hasDocument;
-
-  const handleNew = useCallback(() => {
-    if (showEmpty) {
-      startWithWelcomeDoc();
-      return;
-    }
-    void actions.newDocument();
-  }, [actions, showEmpty, startWithWelcomeDoc]);
 
   return (
     <div
@@ -250,13 +228,7 @@ export default function App() {
       <Sidebar editor={editor} onOpenRecent={actions.openRecent} />
 
       <div className="flex min-w-0 flex-1 flex-col print:block print:h-auto print:overflow-visible">
-        <Toolbar
-          editor={editor}
-          onNew={handleNew}
-          onOpen={() => void actions.openDocument()}
-          onSave={() => void actions.saveDocument()}
-          onPresent={() => actions.present()}
-        />
+        <Toolbar editor={editor} onCommand={handleMenuCommand} />
 
         <main
           className="relative min-h-0 flex-1 print:h-auto print:overflow-visible"
@@ -291,6 +263,8 @@ export default function App() {
           <PresentOverlay editor={editor} onClose={() => setPresentOpen(false)} />
         </Suspense>
       ) : null}
+
+      {shortcutsOpen ? <ShortcutsOverlay onClose={() => setShortcutsOpen(false)} /> : null}
     </div>
   );
 }

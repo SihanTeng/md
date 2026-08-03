@@ -10,6 +10,7 @@ import {
   Heading3,
   Image as ImageIcon,
   Italic,
+  Keyboard,
   Link as LinkIcon,
   List,
   ListOrdered,
@@ -25,6 +26,7 @@ import {
   Underline as UnderlineIcon,
 } from 'lucide-react';
 import { useEffect, useReducer, useRef, useState } from 'react';
+import { formatCombo } from '../lib/keybindings';
 import { fileNameFromPath } from '../lib/markdown/io';
 import {
   dirNameFromPath,
@@ -34,42 +36,62 @@ import {
 } from '../lib/tauri/files';
 import { resolveDark } from '../lib/theme';
 import { useDocumentStore } from '../stores/documentStore';
+import { effectiveCombo, useKeybindingStore } from '../stores/keybindingStore';
 
 interface Props {
   editor: Editor | null;
-  onNew: () => void;
-  onOpen: () => void;
-  onSave: () => void;
-  onPresent: () => void;
+  /** Dispatches a menu-command id (same path as menus and shortcuts). */
+  onCommand: (id: string) => void;
 }
 
 function ToolButton({
   active,
   disabled,
-  title,
+  description,
+  keys,
+  tooltipAlign = 'center',
   onClick,
   children,
 }: {
   active?: boolean;
   disabled?: boolean;
-  title: string;
+  description: string;
+  /** Formatted combo shown next to the description, e.g. 'Ctrl+N' / '⌘N'. */
+  keys?: string;
+  /** Right-edge buttons align the tooltip to avoid overflowing the window. */
+  tooltipAlign?: 'center' | 'right';
   onClick: () => void;
   children: React.ReactNode;
 }) {
   return (
     <button
       type="button"
-      title={title}
+      aria-label={keys ? `${description} (${keys})` : description}
       disabled={disabled}
       onClick={onClick}
       className={[
-        'inline-flex h-7 w-7 items-center justify-center rounded-[var(--radius-sm)] transition-colors',
+        'group relative inline-flex h-7 w-7 items-center justify-center rounded-[var(--radius-sm)] transition-colors',
         'text-[var(--color-ink-secondary)] hover:bg-[var(--color-hover)] hover:text-[var(--color-ink)]',
         'disabled:opacity-40 disabled:pointer-events-none',
         active ? 'bg-[var(--color-accent-soft)] text-[var(--color-accent)]' : '',
       ].join(' ')}
     >
       {children}
+      <span
+        role="tooltip"
+        style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-popover)' }}
+        className={[
+          'pointer-events-none invisible absolute top-full z-50 mt-1 flex items-center gap-2 whitespace-nowrap',
+          'rounded-[var(--radius-sm)] border border-[var(--color-hairline)] px-2 py-1',
+          'opacity-0 transition-opacity duration-150 group-hover:visible group-hover:opacity-100 group-hover:delay-500',
+          tooltipAlign === 'right' ? 'right-0' : 'left-1/2 -translate-x-1/2',
+        ].join(' ')}
+      >
+        <span className="text-xs text-[var(--color-ink)]">{description}</span>
+        {keys ? (
+          <kbd className="font-mono text-[10px] text-[var(--color-ink-tertiary)]">{keys}</kbd>
+        ) : null}
+      </span>
     </button>
   );
 }
@@ -78,7 +100,7 @@ function Divider() {
   return <div className="mx-1 h-4 w-px bg-[var(--color-hairline)]" aria-hidden />;
 }
 
-export function Toolbar({ editor, onNew, onOpen, onSave, onPresent }: Props) {
+export function Toolbar({ editor, onCommand }: Props) {
   const theme = useDocumentStore((s) => s.theme);
   const setTheme = useDocumentStore((s) => s.setTheme);
   const sidebarOpen = useDocumentStore((s) => s.sidebarOpen);
@@ -154,13 +176,22 @@ export function Toolbar({ editor, onNew, onOpen, onSave, onPresent }: Props) {
 
   const icon = 15;
 
+  // Shortcut hints follow the keybinding registry (incl. user rebinds);
+  // editor-owned combos (TipTap) are static but formatted per platform
+  const overrides = useKeybindingStore((s) => s.overrides);
+  const binding = (commandId: string) => {
+    const combo = effectiveCombo(commandId, overrides);
+    return combo ? formatCombo(combo) : undefined;
+  };
+  const staticHint = (combo: string) => formatCombo(combo);
+
   return (
     <div
       className="flex h-[var(--toolbar-height)] shrink-0 items-center gap-0.5 border-b border-[var(--color-hairline)] px-2 print:hidden"
       style={{ background: 'var(--color-toolbar)' }}
     >
       <ToolButton
-        title={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+        description={sidebarOpen ? 'Hide the sidebar' : 'Show the sidebar'}
         onClick={() => setSidebarOpen(!sidebarOpen)}
       >
         <PanelLeft size={icon} strokeWidth={1.75} />
@@ -168,20 +199,34 @@ export function Toolbar({ editor, onNew, onOpen, onSave, onPresent }: Props) {
 
       <Divider />
 
-      <ToolButton title="New (⌘N)" onClick={onNew}>
+      <ToolButton
+        description="Create a new document"
+        keys={binding('file_new')}
+        onClick={() => onCommand('file_new')}
+      >
         <FilePlus size={icon} strokeWidth={1.75} />
       </ToolButton>
-      <ToolButton title="Open (⌘O)" disabled={isOpening} onClick={onOpen}>
+      <ToolButton
+        description="Open a Markdown file"
+        keys={binding('file_open')}
+        disabled={isOpening}
+        onClick={() => onCommand('file_open')}
+      >
         <FolderOpen size={icon} strokeWidth={1.75} />
       </ToolButton>
-      <ToolButton title={dirty ? 'Save (⌘S) · unsaved' : 'Save (⌘S)'} onClick={onSave}>
+      <ToolButton
+        description={dirty ? 'Save — unsaved changes' : 'Save the document'}
+        keys={binding('file_save')}
+        onClick={() => onCommand('file_save')}
+      >
         <Save size={icon} strokeWidth={1.75} />
       </ToolButton>
 
       <Divider />
 
       <ToolButton
-        title="Bold"
+        description="Bold"
+        keys={staticHint('Ctrl+B')}
         disabled={!editor}
         active={!!editor?.isActive('bold')}
         onClick={() => editor?.chain().focus().toggleBold().run()}
@@ -189,7 +234,8 @@ export function Toolbar({ editor, onNew, onOpen, onSave, onPresent }: Props) {
         <Bold size={icon} strokeWidth={1.75} />
       </ToolButton>
       <ToolButton
-        title="Italic"
+        description="Italic"
+        keys={staticHint('Ctrl+I')}
         disabled={!editor}
         active={!!editor?.isActive('italic')}
         onClick={() => editor?.chain().focus().toggleItalic().run()}
@@ -197,7 +243,8 @@ export function Toolbar({ editor, onNew, onOpen, onSave, onPresent }: Props) {
         <Italic size={icon} strokeWidth={1.75} />
       </ToolButton>
       <ToolButton
-        title="Underline"
+        description="Underline"
+        keys={staticHint('Ctrl+U')}
         disabled={!editor}
         active={!!editor?.isActive('underline')}
         onClick={() => editor?.chain().focus().toggleUnderline().run()}
@@ -208,7 +255,8 @@ export function Toolbar({ editor, onNew, onOpen, onSave, onPresent }: Props) {
       <Divider />
 
       <ToolButton
-        title="Heading 1"
+        description="Heading 1"
+        keys={staticHint('Ctrl+Alt+1')}
         disabled={!editor}
         active={!!editor?.isActive('heading', { level: 1 })}
         onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}
@@ -216,7 +264,8 @@ export function Toolbar({ editor, onNew, onOpen, onSave, onPresent }: Props) {
         <Heading1 size={icon} strokeWidth={1.75} />
       </ToolButton>
       <ToolButton
-        title="Heading 2"
+        description="Heading 2"
+        keys={staticHint('Ctrl+Alt+2')}
         disabled={!editor}
         active={!!editor?.isActive('heading', { level: 2 })}
         onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
@@ -224,7 +273,8 @@ export function Toolbar({ editor, onNew, onOpen, onSave, onPresent }: Props) {
         <Heading2 size={icon} strokeWidth={1.75} />
       </ToolButton>
       <ToolButton
-        title="Heading 3"
+        description="Heading 3"
+        keys={staticHint('Ctrl+Alt+3')}
         disabled={!editor}
         active={!!editor?.isActive('heading', { level: 3 })}
         onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}
@@ -235,7 +285,8 @@ export function Toolbar({ editor, onNew, onOpen, onSave, onPresent }: Props) {
       <Divider />
 
       <ToolButton
-        title="Bullet list"
+        description="Bullet list"
+        keys={staticHint('Ctrl+Shift+8')}
         disabled={!editor}
         active={!!editor?.isActive('bulletList')}
         onClick={() => editor?.chain().focus().toggleBulletList().run()}
@@ -243,7 +294,8 @@ export function Toolbar({ editor, onNew, onOpen, onSave, onPresent }: Props) {
         <List size={icon} strokeWidth={1.75} />
       </ToolButton>
       <ToolButton
-        title="Numbered list"
+        description="Numbered list"
+        keys={staticHint('Ctrl+Shift+7')}
         disabled={!editor}
         active={!!editor?.isActive('orderedList')}
         onClick={() => editor?.chain().focus().toggleOrderedList().run()}
@@ -251,7 +303,8 @@ export function Toolbar({ editor, onNew, onOpen, onSave, onPresent }: Props) {
         <ListOrdered size={icon} strokeWidth={1.75} />
       </ToolButton>
       <ToolButton
-        title="Task list"
+        description="Task list"
+        keys={staticHint('Ctrl+Shift+9')}
         disabled={!editor}
         active={!!editor?.isActive('taskList')}
         onClick={() => editor?.chain().focus().toggleTaskList().run()}
@@ -259,7 +312,8 @@ export function Toolbar({ editor, onNew, onOpen, onSave, onPresent }: Props) {
         <ListTodo size={icon} strokeWidth={1.75} />
       </ToolButton>
       <ToolButton
-        title="Quote"
+        description="Blockquote"
+        keys={staticHint('Ctrl+Shift+B')}
         disabled={!editor}
         active={!!editor?.isActive('blockquote')}
         onClick={() => editor?.chain().focus().toggleBlockquote().run()}
@@ -267,7 +321,8 @@ export function Toolbar({ editor, onNew, onOpen, onSave, onPresent }: Props) {
         <Quote size={icon} strokeWidth={1.75} />
       </ToolButton>
       <ToolButton
-        title="Code block"
+        description="Code block"
+        keys={staticHint('Ctrl+Alt+C')}
         disabled={!editor}
         active={!!editor?.isActive('codeBlock')}
         onClick={() => editor?.chain().focus().toggleCodeBlock().run()}
@@ -275,18 +330,27 @@ export function Toolbar({ editor, onNew, onOpen, onSave, onPresent }: Props) {
         <Code size={icon} strokeWidth={1.75} />
       </ToolButton>
       <ToolButton
-        title="Insert table (or type | --- | under a pipe row)"
+        description="Insert a table (or type | --- | under a pipe row)"
         disabled={!editor}
         active={!!editor?.isActive('table')}
         onClick={() => editor?.chain().focus().insertTable({ rows: 3, cols: 2 }).run()}
       >
         <Table size={icon} strokeWidth={1.75} />
       </ToolButton>
-      <ToolButton title="Insert image…" disabled={!editor} onClick={() => void insertImage()}>
+      <ToolButton
+        description="Insert an image…"
+        disabled={!editor}
+        onClick={() => void insertImage()}
+      >
         <ImageIcon size={icon} strokeWidth={1.75} />
       </ToolButton>
       <div className="relative">
-        <ToolButton title="Link" disabled={!editor} active={linkOpen} onClick={openLinkEditor}>
+        <ToolButton
+          description="Insert or edit a link"
+          disabled={!editor}
+          active={linkOpen}
+          onClick={openLinkEditor}
+        >
           <LinkIcon size={icon} strokeWidth={1.75} />
         </ToolButton>
         {linkOpen ? (
@@ -325,7 +389,7 @@ export function Toolbar({ editor, onNew, onOpen, onSave, onPresent }: Props) {
         ) : null}
       </div>
       <ToolButton
-        title="Horizontal rule"
+        description="Horizontal rule"
         disabled={!editor}
         onClick={() => editor?.chain().focus().setHorizontalRule().run()}
       >
@@ -334,11 +398,25 @@ export function Toolbar({ editor, onNew, onOpen, onSave, onPresent }: Props) {
 
       <div className="flex-1" />
 
-      <ToolButton title="Present (⌘⇧P)" onClick={onPresent}>
+      <ToolButton
+        description="Present this document as slides"
+        keys={binding('view_present')}
+        tooltipAlign="right"
+        onClick={() => onCommand('view_present')}
+      >
         <Presentation size={icon} strokeWidth={1.75} />
       </ToolButton>
       <ToolButton
-        title={isDark ? 'Light mode' : 'Dark mode'}
+        description="Show keyboard shortcuts"
+        keys={binding('app_shortcuts')}
+        tooltipAlign="right"
+        onClick={() => onCommand('app_shortcuts')}
+      >
+        <Keyboard size={icon} strokeWidth={1.75} />
+      </ToolButton>
+      <ToolButton
+        description={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+        tooltipAlign="right"
         onClick={() => setTheme(isDark ? 'light' : 'dark')}
       >
         {isDark ? <Sun size={icon} strokeWidth={1.75} /> : <Moon size={icon} strokeWidth={1.75} />}
