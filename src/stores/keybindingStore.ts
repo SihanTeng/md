@@ -17,7 +17,7 @@ function loadOverrides(): Record<string, string> {
     if (!raw) return {};
     const parsed: unknown = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return {};
-    const valid = new Set(COMMANDS.map((c) => c.commandId));
+    const valid = new Set<string>(COMMANDS.map((c) => c.commandId));
     return Object.fromEntries(
       Object.entries(parsed as Record<string, unknown>).filter(
         ([id, combo]) => valid.has(id) && typeof combo === 'string',

@@ -26,7 +26,7 @@ import {
   Underline as UnderlineIcon,
 } from 'lucide-react';
 import { useEffect, useReducer, useRef, useState } from 'react';
-import { formatCombo } from '../lib/keybindings';
+import { type CommandId, formatCombo } from '../lib/keybindings';
 import { fileNameFromPath } from '../lib/markdown/io';
 import {
   dirNameFromPath,
@@ -41,7 +41,7 @@ import { effectiveCombo, useKeybindingStore } from '../stores/keybindingStore';
 interface Props {
   editor: Editor | null;
   /** Dispatches a menu-command id (same path as menus and shortcuts). */
-  onCommand: (id: string) => void;
+  onCommand: (id: CommandId) => void;
 }
 
 function ToolButton({

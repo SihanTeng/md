@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { commandForCombo, effectiveCombo, useKeybindingStore } from '../stores/keybindingStore';
 import { COMMANDS, comboFromEvent, formatCombo, hasModifier } from './keybindings';
@@ -71,8 +74,69 @@ describe('keybindingStore', () => {
   });
 
   it('every default combo is unique and dispatchable', () => {
-    const combos = COMMANDS.map((c) => c.defaultCombo);
+    const combos = COMMANDS.map((c) => c.defaultCombo).filter((c) => c !== null);
     expect(new Set(combos).size).toBe(combos.length);
-    for (const c of COMMANDS) expect(commandForCombo(c.defaultCombo)).toBe(c.commandId);
+    for (const c of COMMANDS) {
+      if (c.defaultCombo) expect(commandForCombo(c.defaultCombo)).toBe(c.commandId);
+    }
+  });
+
+  it('commands without a default combo are unbound until rebound, then unbound again on reset', () => {
+    expect(effectiveCombo('file_export_pdf')).toBeNull();
+    expect(commandForCombo('Ctrl+Alt+P')).toBeNull();
+    useKeybindingStore.getState().setBinding('file_export_pdf', 'Ctrl+Alt+P');
+    expect(effectiveCombo('file_export_pdf')).toBe('Ctrl+Alt+P');
+    expect(commandForCombo('Ctrl+Alt+P')).toBe('file_export_pdf');
+    useKeybindingStore.getState().resetBinding('file_export_pdf');
+    expect(effectiveCombo('file_export_pdf')).toBeNull();
+    expect(commandForCombo('Ctrl+Alt+P')).toBeNull();
+  });
+});
+
+// The catalog is the single source of truth for app commands. These guards
+// keep the surfaces that dispatch command ids — the App.tsx switch, the
+// in-window MenuBar/Toolbar, and the native macOS menu in Rust — from
+// drifting away from it (or from each other).
+describe('command catalog coverage', () => {
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+  const read = (rel: string) => readFileSync(resolve(root, rel), 'utf8');
+  const catalogIds = new Set<string>(COMMANDS.map((c) => c.commandId));
+
+  it('every id handled by handleMenuCommand (App.tsx) is in the catalog', () => {
+    // Command ids follow the `<section>_<action>` convention; the prefix
+    // keeps this guard from tripping on unrelated switch cases in App.tsx.
+    const dispatched = [
+      ...read('src/App.tsx').matchAll(/case '((?:file|edit|view|app)_[a-z_]+)':/g),
+    ].map((m) => m[1]);
+    expect(dispatched.length).toBeGreaterThan(0);
+    for (const id of dispatched) {
+      expect(catalogIds.has(id), `'${id}' is dispatched but missing from COMMANDS`).toBe(true);
+    }
+  });
+
+  it('every command id dispatched by MenuBar/Toolbar is in the catalog', () => {
+    for (const file of ['src/components/MenuBar.tsx', 'src/components/Toolbar.tsx']) {
+      const dispatched = [...read(file).matchAll(/(?:onCommand|item)\('([a-z_]+)'\)/g)].map(
+        (m) => m[1],
+      );
+      expect(dispatched.length).toBeGreaterThan(0);
+      for (const id of dispatched) {
+        expect(catalogIds.has(id), `'${id}' in ${file} is missing from COMMANDS`).toBe(true);
+      }
+    }
+  });
+
+  it('native macOS menu items (Rust) match catalog ids and labels', () => {
+    const items = [
+      ...read('src-tauri/src/lib.rs').matchAll(
+        /MenuItem::with_id\(\s*app,\s*"([a-z_]+)",\s*"([^"]+)"/g,
+      ),
+    ].map((m) => ({ id: m[1], label: m[2] }));
+    expect(items.length).toBeGreaterThan(0);
+    for (const { id, label } of items) {
+      const spec = COMMANDS.find((c) => c.commandId === id);
+      expect(spec, `Rust menu item '${id}' is missing from COMMANDS`).toBeDefined();
+      expect(spec?.label, `Rust menu label for '${id}' drifted from the catalog`).toBe(label);
+    }
   });
 });

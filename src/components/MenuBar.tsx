@@ -1,7 +1,7 @@
 import { getCurrentWindow, type Window } from '@tauri-apps/api/window';
 import type { Editor } from '@tiptap/react';
 import { useEffect, useRef, useState } from 'react';
-import { formatCombo } from '../lib/keybindings';
+import { COMMANDS, type CommandId, formatCombo } from '../lib/keybindings';
 import { customChrome } from '../lib/platform';
 import { effectiveCombo, useKeybindingStore } from '../stores/keybindingStore';
 
@@ -37,7 +37,7 @@ interface MenuSection {
 interface MenuBarProps {
   editor: Editor | null;
   /** Dispatches the same command ids the native (macOS) menu emits. */
-  onCommand: (id: string) => void;
+  onCommand: (id: CommandId) => void;
 }
 
 export function MenuBar(props: MenuBarProps) {
@@ -348,16 +348,24 @@ function ResizeHandles({ appWindow }: { appWindow: Window }) {
 
 function buildSections(
   editor: Editor | null,
-  onCommand: (id: string) => void,
+  onCommand: (id: CommandId) => void,
   appWindow: Window,
   overrides: Record<string, string>,
 ): MenuSection[] {
   const sep: MenuEntry = { kind: 'separator' };
   // Accelerator hint for a rebindable registry command
-  const hint = (commandId: string) => {
+  const hint = (commandId: CommandId) => {
     const combo = effectiveCombo(commandId, overrides);
     return combo ? formatCombo(combo) : undefined;
   };
+  // Catalog-driven entry: label and accelerator come from COMMANDS, so the
+  // menu can never drift from the registry (or the Shortcuts overlay).
+  const item = (commandId: CommandId): MenuEntry => ({
+    kind: 'item',
+    label: COMMANDS.find((c) => c.commandId === commandId)?.label ?? commandId,
+    shortcut: hint(commandId),
+    onSelect: () => onCommand(commandId),
+  });
   const clipboard = (cmd: 'cut' | 'copy') => () => {
     document.execCommand(cmd);
     editor?.chain().focus().run();
@@ -380,44 +388,16 @@ function buildSections(
       id: 'file',
       label: 'File',
       entries: [
-        {
-          kind: 'item',
-          label: 'New',
-          shortcut: hint('file_new'),
-          onSelect: () => onCommand('file_new'),
-        },
-        {
-          kind: 'item',
-          label: 'Open…',
-          shortcut: hint('file_open'),
-          onSelect: () => onCommand('file_open'),
-        },
+        item('file_new'),
+        item('file_open'),
         sep,
-        {
-          kind: 'item',
-          label: 'Save',
-          shortcut: hint('file_save'),
-          onSelect: () => onCommand('file_save'),
-        },
-        {
-          kind: 'item',
-          label: 'Save As…',
-          shortcut: hint('file_save_as'),
-          onSelect: () => onCommand('file_save_as'),
-        },
+        item('file_save'),
+        item('file_save_as'),
         sep,
-        {
-          kind: 'item',
-          label: 'Export HTML…',
-          onSelect: () => onCommand('file_export_html'),
-        },
-        { kind: 'item', label: 'Export PDF…', onSelect: () => onCommand('file_export_pdf') },
+        item('file_export_html'),
+        item('file_export_pdf'),
         sep,
-        {
-          kind: 'item',
-          label: 'Check for Updates…',
-          onSelect: () => onCommand('app_check_updates'),
-        },
+        item('app_check_updates'),
         sep,
         // Goes through the Rust CloseRequested guard, so unsaved changes
         // still get confirmed before the window is destroyed.
@@ -472,32 +452,14 @@ function buildSections(
           onSelect: () => editor?.chain().focus().selectAll().run(),
         },
         sep,
-        {
-          kind: 'item',
-          label: 'Find…',
-          shortcut: hint('edit_find'),
-          onSelect: () => onCommand('edit_find'),
-        },
-        { kind: 'item', label: 'Copy as HTML', onSelect: () => onCommand('edit_copy_html') },
+        item('edit_find'),
+        item('edit_copy_html'),
       ],
     },
     {
       id: 'view',
       label: 'View',
-      entries: [
-        {
-          kind: 'item',
-          label: 'Present',
-          shortcut: hint('view_present'),
-          onSelect: () => onCommand('view_present'),
-        },
-        {
-          kind: 'item',
-          label: 'Keyboard Shortcuts',
-          shortcut: hint('app_shortcuts'),
-          onSelect: () => onCommand('app_shortcuts'),
-        },
-      ],
+      entries: [item('view_present'), item('app_shortcuts')],
     },
   ];
 }

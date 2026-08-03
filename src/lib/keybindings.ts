@@ -1,10 +1,16 @@
 /**
- * Central registry of app-level keyboard shortcuts.
+ * Central catalog of app-level commands: one definition per action.
  *
- * One source of truth consumed by the global keydown dispatcher (App.tsx),
- * the in-window MenuBar accelerators, toolbar tooltips, and the
- * ShortcutsOverlay (hints + rebind + reset). Editing commands owned by the
+ * Everything else is a view of this list — the global keydown dispatcher
+ * (App.tsx), the in-window MenuBar items and accelerators, toolbar tooltips,
+ * and the ShortcutsOverlay (hints + rebind + reset) all render from it, and
+ * handleMenuCommand in App.tsx owns execution. Editing commands owned by the
  * editor/webview itself (undo, cut/copy/paste, select all) are not here.
+ *
+ * Rule: every command id dispatched anywhere (handleMenuCommand, MenuBar /
+ * Toolbar onCommand, the native macOS menu in src-tauri/src/lib.rs) must be
+ * listed here — keybindings.test.ts enforces the sync, so a new feature
+ * ships with a catalog entry or the tests go red.
  */
 import { isMac } from './platform';
 
@@ -13,16 +19,23 @@ export interface CommandSpec {
   commandId: string;
   label: string;
   section: 'File' | 'Edit' | 'View' | 'App';
-  /** Normalized combo: modifiers in Ctrl/Alt/Shift order, then the key. */
-  defaultCombo: string;
+  /**
+   * Normalized combo: modifiers in Ctrl/Alt/Shift order, then the key.
+   * null = no default shortcut; the command is menu-only until the user
+   * rebinds it in the Shortcuts overlay.
+   */
+  defaultCombo: string | null;
 }
 
-export const COMMANDS: CommandSpec[] = [
+export const COMMANDS = [
   { commandId: 'file_new', label: 'New', section: 'File', defaultCombo: 'Ctrl+N' },
   { commandId: 'file_open', label: 'Open…', section: 'File', defaultCombo: 'Ctrl+O' },
   { commandId: 'file_save', label: 'Save', section: 'File', defaultCombo: 'Ctrl+S' },
   { commandId: 'file_save_as', label: 'Save As…', section: 'File', defaultCombo: 'Ctrl+Shift+S' },
+  { commandId: 'file_export_html', label: 'Export HTML…', section: 'File', defaultCombo: null },
+  { commandId: 'file_export_pdf', label: 'Export PDF…', section: 'File', defaultCombo: null },
   { commandId: 'edit_find', label: 'Find…', section: 'Edit', defaultCombo: 'Ctrl+F' },
+  { commandId: 'edit_copy_html', label: 'Copy as HTML', section: 'Edit', defaultCombo: null },
   { commandId: 'view_present', label: 'Present', section: 'View', defaultCombo: 'Ctrl+Shift+P' },
   {
     commandId: 'app_shortcuts',
@@ -30,7 +43,16 @@ export const COMMANDS: CommandSpec[] = [
     section: 'App',
     defaultCombo: 'Ctrl+/',
   },
-];
+  {
+    commandId: 'app_check_updates',
+    label: 'Check for Updates…',
+    section: 'App',
+    defaultCombo: null,
+  },
+] as const satisfies readonly CommandSpec[];
+
+/** Union of every cataloged command id — what UI surfaces may dispatch. */
+export type CommandId = (typeof COMMANDS)[number]['commandId'];
 
 const MODIFIER_KEYS = new Set(['Control', 'Shift', 'Alt', 'Meta']);
 
