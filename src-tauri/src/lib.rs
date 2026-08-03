@@ -446,19 +446,29 @@ pub fn run() {
             force_quit
         ])
         .setup(|app| {
-            let menu = build_menu(app.handle())?;
-            app.set_menu(menu)?;
+            // The native menu bar is macOS-only: on Linux/Windows the
+            // frontend draws its own in-window menu (MenuBar.tsx), since
+            // decorations are removed there.
+            if cfg!(target_os = "macos") {
+                let menu = build_menu(app.handle())?;
+                app.set_menu(menu)?;
 
-            let handle = app.handle().clone();
-            app.on_menu_event(move |_app, event| {
-                let id = event.id().as_ref();
-                let _ = handle.emit("menu", id);
-            });
+                let handle = app.handle().clone();
+                app.on_menu_event(move |_app, event| {
+                    let id = event.id().as_ref();
+                    let _ = handle.emit("menu", id);
+                });
+            }
 
             // Unsaved-changes guard: never let the OS close the window
             // directly — ask the frontend, which destroys the window (or
             // quits) once the user confirms.
             if let Some(window) = app.get_webview_window("main") {
+                // Custom chrome: the frontend renders the menu bar and the
+                // window controls (min/max/close) itself.
+                #[cfg(any(target_os = "linux", target_os = "windows"))]
+                let _ = window.set_decorations(false);
+
                 let win = window.clone();
                 window.on_window_event(move |event| {
                     if let tauri::WindowEvent::CloseRequested { api, .. } = event {

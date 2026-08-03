@@ -5,11 +5,13 @@ import welcomeMarkdown from './assets/welcome.md?raw';
 import { FindReplaceOverlay } from './components/Editor/FindReplaceOverlay';
 import { MarkdownEditor } from './components/Editor/MarkdownEditor';
 import { EmptyState } from './components/EmptyState';
+import { MenuBar } from './components/MenuBar';
 import { Sidebar } from './components/Sidebar';
 import { StatusBar } from './components/StatusBar';
 import { Toolbar } from './components/Toolbar';
 import { confirmDiscard, useDocumentActions } from './hooks/useDocumentActions';
 import { markdownToHtml } from './lib/markdown/io';
+import { customChrome } from './lib/platform';
 import { closeWindow, forceQuit } from './lib/tauri/files';
 import { applyThemeClass, loadThemePreference, saveThemePreference } from './lib/theme';
 import { checkForUpdates } from './lib/updater';
@@ -133,11 +135,11 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [autoSave, dirty, docPath, editTick, saveDocument]);
 
-  // Native menu events from Rust
-  useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    listen<string>('menu', (event) => {
-      switch (event.payload) {
+  // Menu commands — shared by the native macOS menu (via the Rust 'menu'
+  // event) and the in-window MenuBar used on Linux/Windows
+  const handleMenuCommand = useCallback(
+    (id: string) => {
+      switch (id) {
         case 'file_new':
           if (!useDocumentStore.getState().hasDocument) {
             startWithWelcomeDoc();
@@ -173,7 +175,14 @@ export default function App() {
           void checkForUpdates(true);
           break;
       }
-    })
+    },
+    [actions, startWithWelcomeDoc],
+  );
+
+  // Native menu events from Rust (macOS only)
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listen<string>('menu', (event) => handleMenuCommand(event.payload))
       .then((fn) => {
         unlisten = fn;
       })
@@ -181,7 +190,7 @@ export default function App() {
         /* not in Tauri */
       });
     return () => unlisten?.();
-  }, [actions, startWithWelcomeDoc]);
+  }, [handleMenuCommand]);
 
   // Global shortcuts
   useEffect(() => {
@@ -206,8 +215,8 @@ export default function App() {
         e.preventDefault();
         void actions.saveDocument();
       } else if (key === 'f' && !e.shiftKey) {
-        // Fallback for the browser dev build — inside Tauri the native
-        // Edit → Find… menu accelerator fires instead
+        // Primary path on Linux/Windows/browser; on macOS the native menu
+        // accelerator usually intercepts Ctrl/Cmd+F before this fires
         e.preventDefault();
         if (useDocumentStore.getState().hasDocument) setFindOpen(true);
       } else if (key === 'p' && e.shiftKey) {
@@ -234,7 +243,10 @@ export default function App() {
   }, [actions, showEmpty, startWithWelcomeDoc]);
 
   return (
-    <div className="flex h-full w-full overflow-hidden bg-[var(--color-bg)] print:block print:h-auto print:overflow-visible">
+    <div
+      className={`flex h-full w-full overflow-hidden bg-[var(--color-bg)] print:block print:h-auto print:overflow-visible ${customChrome ? 'pt-8 print:pt-0' : ''}`}
+    >
+      <MenuBar editor={editor} onCommand={handleMenuCommand} />
       <Sidebar editor={editor} onOpenRecent={actions.openRecent} />
 
       <div className="flex min-w-0 flex-1 flex-col print:block print:h-auto print:overflow-visible">
