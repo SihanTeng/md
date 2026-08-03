@@ -41,6 +41,16 @@ export async function renameFile(oldPath: string, newPath: string): Promise<void
   await invoke('rename_file', { oldPath, newPath });
 }
 
+/** Duplicate a file next to the original ("name copy.md"); returns the new path. */
+export async function copyFile(path: string): Promise<string> {
+  return invoke<string>('copy_file', { path });
+}
+
+/** Move a file or directory to the OS trash. */
+export async function deletePath(path: string): Promise<void> {
+  await invoke('delete_path', { path });
+}
+
 /** Store pasted image bytes next to the document; returns the relative path. */
 export async function saveImageAsset(
   docDir: string,

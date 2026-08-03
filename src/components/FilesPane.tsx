@@ -1,7 +1,9 @@
-import { FilePlus, FileText, Folder, FolderOpen, FolderUp } from 'lucide-react';
+import { ask } from '@tauri-apps/plugin-dialog';
+import { Copy, FilePlus, FileText, Folder, FolderOpen, FolderUp, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { fileNameFromPath } from '../lib/markdown/io';
 import { openHref } from '../lib/openHref';
-import { type DirListing, listDir, writeTextFile } from '../lib/tauri/files';
+import { copyFile, type DirListing, deletePath, listDir, writeTextFile } from '../lib/tauri/files';
 import { useDocumentStore } from '../stores/documentStore';
 
 function parentOf(path: string): string | null {
@@ -84,6 +86,39 @@ export function FilesPane({ onOpenFile }: Props) {
     const baseDir = target.isDir ? target.path : parentOf(target.path);
     if (baseDir) setCreatingIn(baseDir);
   }, []);
+
+  const copyTarget = useCallback(
+    async (target: MenuTarget) => {
+      setMenu(null);
+      try {
+        await copyFile(target.path);
+        setRefreshKey((k) => k + 1);
+      } catch (e) {
+        setStoreError(e instanceof Error ? e.message : String(e));
+      }
+    },
+    [setStoreError],
+  );
+
+  const deleteTarget = useCallback(
+    async (target: MenuTarget) => {
+      setMenu(null);
+      const ok = await ask(`Move “${fileNameFromPath(target.path)}” to Trash?`, {
+        title: 'Move to Trash',
+        kind: 'warning',
+        okLabel: 'Move to Trash',
+        cancelLabel: 'Cancel',
+      });
+      if (!ok) return;
+      try {
+        await deletePath(target.path);
+        setRefreshKey((k) => k + 1);
+      } catch (e) {
+        setStoreError(e instanceof Error ? e.message : String(e));
+      }
+    },
+    [setStoreError],
+  );
 
   const createFile = useCallback(
     async (rawName: string) => {
@@ -204,7 +239,7 @@ export function FilesPane({ onOpenFile }: Props) {
             className="absolute min-w-[180px] rounded-[var(--radius-md)] border border-[var(--color-hairline)] bg-[var(--color-surface)] p-1 shadow-[var(--shadow-popover)]"
             style={{
               left: Math.min(menu.x, window.innerWidth - 190),
-              top: Math.min(menu.y, window.innerHeight - 80),
+              top: Math.min(menu.y, window.innerHeight - 170),
             }}
           >
             <button
@@ -219,6 +254,13 @@ export function FilesPane({ onOpenFile }: Props) {
               <FilePlus size={13} className="shrink-0" strokeWidth={1.75} />
               <span className="truncate">New File…</span>
             </button>
+            {menu.isDir ? null : (
+              <button type="button" className={rowClass} onClick={() => void copyTarget(menu)}>
+                <Copy size={13} className="shrink-0" strokeWidth={1.75} />
+                <span className="truncate">Copy File</span>
+              </button>
+            )}
+            <div className="mx-1 my-1 h-px bg-[var(--color-hairline)]" />
             <button
               type="button"
               className={rowClass}
@@ -229,8 +271,19 @@ export function FilesPane({ onOpenFile }: Props) {
               }}
             >
               <FolderOpen size={13} className="shrink-0" strokeWidth={1.75} />
-              <span className="truncate">Open in File Manager</span>
+              <span className="truncate">
+                {menu.isDir ? 'Open in File Manager' : 'Open Containing Folder'}
+              </span>
             </button>
+            {menu.isDir && menu.path === listing?.dir ? null : (
+              <>
+                <div className="mx-1 my-1 h-px bg-[var(--color-hairline)]" />
+                <button type="button" className={rowClass} onClick={() => void deleteTarget(menu)}>
+                  <Trash2 size={13} className="shrink-0" strokeWidth={1.75} />
+                  <span className="truncate">Move to Trash</span>
+                </button>
+              </>
+            )}
           </div>
         </div>
       ) : null}

@@ -1,5 +1,5 @@
 import type { Editor } from '@tiptap/react';
-import { Clock, FileText, Folder, ListTree } from 'lucide-react';
+import { Clock, FileText, Folder, ListTree, X } from 'lucide-react';
 import { scrollToPos } from '../lib/outline';
 import { type OutlineItem, type RecentFile, useDocumentStore } from '../stores/documentStore';
 import { FilesPane } from './FilesPane';
@@ -7,9 +7,10 @@ import { FilesPane } from './FilesPane';
 interface Props {
   editor: Editor | null;
   onOpenRecent: (path: string) => void;
+  onHideRecent: (path: string) => void;
 }
 
-export function Sidebar({ editor, onOpenRecent }: Props) {
+export function Sidebar({ editor, onOpenRecent, onHideRecent }: Props) {
   const open = useDocumentStore((s) => s.sidebarOpen);
   const outline = useDocumentStore((s) => s.outline);
   const recent = useDocumentStore((s) => s.recent);
@@ -48,6 +49,7 @@ export function Sidebar({ editor, onOpenRecent }: Props) {
           title={title}
           dirty={dirty}
           onOpenRecent={onOpenRecent}
+          onHideRecent={onHideRecent}
         />
       )}
     </aside>
@@ -88,6 +90,7 @@ function OutlinePane({
   title,
   dirty,
   onOpenRecent,
+  onHideRecent,
 }: {
   editor: Editor | null;
   outline: OutlineItem[];
@@ -95,6 +98,7 @@ function OutlinePane({
   title: string;
   dirty: boolean;
   onOpenRecent: (path: string) => void;
+  onHideRecent: (path: string) => void;
 }) {
   return (
     <>
@@ -135,15 +139,25 @@ function OutlinePane({
             <EmptyHint>No recent files</EmptyHint>
           ) : (
             recent.map((f) => (
-              <button
-                key={f.path}
-                type="button"
-                title={f.path}
-                onClick={() => onOpenRecent(f.path)}
-                className="block w-full truncate rounded-[var(--radius-sm)] px-2 py-1 text-left text-[12.5px] text-[var(--color-ink-secondary)] hover:bg-[var(--color-hover)] hover:text-[var(--color-ink)]"
-              >
-                {f.name}
-              </button>
+              <div key={f.path} className="group relative">
+                <button
+                  type="button"
+                  title={f.path}
+                  onClick={() => onOpenRecent(f.path)}
+                  className="block w-full truncate rounded-[var(--radius-sm)] px-2 py-1 pr-6 text-left text-[12.5px] text-[var(--color-ink-secondary)] hover:bg-[var(--color-hover)] hover:text-[var(--color-ink)]"
+                >
+                  {f.name}
+                </button>
+                <button
+                  type="button"
+                  title={`Hide ${f.name} from recent`}
+                  aria-label={`Hide ${f.name} from recent`}
+                  onClick={() => onHideRecent(f.path)}
+                  className="absolute top-1/2 right-1 -translate-y-1/2 rounded-[var(--radius-sm)] p-0.5 text-[var(--color-ink-tertiary)] opacity-0 hover:bg-[var(--color-active)] hover:text-[var(--color-ink)] group-hover:opacity-100"
+                >
+                  <X size={12} strokeWidth={2} />
+                </button>
+              </div>
             ))
           )}
         </Section>

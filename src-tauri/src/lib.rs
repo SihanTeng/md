@@ -137,6 +137,43 @@ fn rename_file(old_path: String, new_path: String) -> Result<(), String> {
     fs::rename(&old_path, &new_path).map_err(|e| format!("Failed to rename file: {e}"))
 }
 
+/// Duplicate a file next to the original: `note.md` -> `note copy.md`,
+/// then `note copy 2.md`, and so on. Returns the new file's path.
+#[tauri::command]
+fn copy_file(path: String) -> Result<String, String> {
+    let src = Path::new(&path);
+    if !src.is_file() {
+        return Err(format!("Not a file: {}", file_name_from_path(&path)));
+    }
+    let parent = src.parent().ok_or("File has no parent directory")?;
+    let name = src
+        .file_name()
+        .and_then(|s| s.to_str())
+        .ok_or("Invalid file name")?;
+    let (stem, ext) = match name.rsplit_once('.') {
+        Some((s, e)) if !s.is_empty() => (s.to_string(), format!(".{e}")),
+        _ => (name.to_string(), String::new()),
+    };
+    for i in 1..1000 {
+        let candidate = parent.join(if i == 1 {
+            format!("{stem} copy{ext}")
+        } else {
+            format!("{stem} copy {i}{ext}")
+        });
+        if !candidate.exists() {
+            fs::copy(src, &candidate).map_err(|e| format!("Failed to copy file: {e}"))?;
+            return Ok(candidate.to_string_lossy().into_owned());
+        }
+    }
+    Err("Could not find a free copy name".into())
+}
+
+/// Move a file or directory to the OS trash.
+#[tauri::command]
+fn delete_path(path: String) -> Result<(), String> {
+    trash::delete(&path).map_err(|e| format!("Failed to move to trash: {e}"))
+}
+
 /// Pasted/uploaded images live in an `assets/` folder next to the document;
 /// the markdown references them by relative path so the folder stays portable.
 /// Returns a collision-free destination like `assets/pic-1.png`.
@@ -440,6 +477,8 @@ pub fn run() {
             clear_recent,
             remove_recent,
             rename_file,
+            copy_file,
+            delete_path,
             save_image_asset,
             import_image,
             read_binary_file,

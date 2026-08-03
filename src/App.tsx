@@ -225,7 +225,11 @@ export default function App() {
       className={`flex h-full w-full overflow-hidden bg-[var(--color-bg)] print:block print:h-auto print:overflow-visible ${customChrome ? 'pt-8 print:pt-0' : ''}`}
     >
       <MenuBar editor={editor} onCommand={handleMenuCommand} />
-      <Sidebar editor={editor} onOpenRecent={actions.openRecent} />
+      <Sidebar
+        editor={editor}
+        onOpenRecent={actions.openRecent}
+        onHideRecent={(path) => void actions.hideRecent(path)}
+      />
 
       <div className="flex min-w-0 flex-1 flex-col print:block print:h-auto print:overflow-visible">
         <Toolbar editor={editor} onCommand={handleMenuCommand} />

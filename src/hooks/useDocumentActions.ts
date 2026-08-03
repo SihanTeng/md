@@ -389,6 +389,17 @@ export function useDocumentActions(editor: Editor | null) {
     }
   }, [setRecent]);
 
+  const hideRecent = useCallback(
+    async (path: string) => {
+      try {
+        setRecent(await removeRecent(path));
+      } catch {
+        /* noop */
+      }
+    },
+    [setRecent],
+  );
+
   const syncTitle = useCallback(async () => {
     await setWindowTitle(title, dirty);
   }, [dirty, title]);
@@ -408,6 +419,7 @@ export function useDocumentActions(editor: Editor | null) {
       present,
       refreshRecent,
       clearRecentFiles,
+      hideRecent,
       syncTitle,
       loadFromPath,
       loadDocument,
@@ -428,6 +440,7 @@ export function useDocumentActions(editor: Editor | null) {
       present,
       refreshRecent,
       clearRecentFiles,
+      hideRecent,
       syncTitle,
       loadFromPath,
       loadDocument,
