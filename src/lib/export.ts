@@ -36,8 +36,10 @@ const EXPORT_CSS = `
   ul, ol { padding-left: 1.4em; margin: 0.5em 0; }
   li { margin: 0.2em 0; }
   li p { margin: 0; }
-  ul:has(> li > input[type="checkbox"]) { list-style: none; padding-left: 0.15em; }
-  li > input[type="checkbox"] { margin-right: 0.5em; }
+  ul:has(> li > input[type="checkbox"]) { list-style: none; padding-left: 1.4em; }
+  /* Checkbox hangs in the indent slot like a list marker: 1em box + 0.4em
+     gap = the 1.4em padding, so task text aligns with bullet text */
+  li > input[type="checkbox"] { width: 1em; height: 1em; margin: 0 0.4em 0 -1.4em; vertical-align: -0.1em; }
   blockquote {
     border-left: 3px solid rgba(0, 0, 0, 0.12);
     margin: 0.85em 0;

@@ -245,13 +245,16 @@ button {
 
 .ProseMirror ul[data-type="taskList"] {
   list-style: none;
-  padding-left: 0.15em;
+  /* Same indent slot as ul/ol — the checkbox hangs in it like a marker,
+     so task items align with bullet/numbered items (Tolaria-style: one
+     shared marker slot for every list type) */
+  padding-left: 1.4em;
 }
 
 .ProseMirror ul[data-type="taskList"] li {
   display: flex;
   align-items: flex-start;
-  gap: 0.5em;
+  gap: 0.4em;
 }
 
 /* Center the checkbox on the first text line (15px × 1.55 line box) */
@@ -260,6 +263,10 @@ button {
   align-items: center;
   height: calc(15px * 1.55);
   flex-shrink: 0;
+  /* Pull the checkbox back by its full footprint (15px box + 0.4em gap)
+     so it hangs in the indent slot like a marker and the text starts at
+     the content edge — aligned with bullet/numbered items */
+  margin-left: calc(-15px - 0.4em);
 }
 
 /* Custom checkbox: a quiet rounded box that fills with the accent color
