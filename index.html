@@ -1,7 +1,36 @@
 <!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>md packages</title></head>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>md package repositories</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+    code, pre { background: #f4f4f5; border-radius: 6px; }
+    pre { padding: 0.75rem 1rem; overflow-x: auto; }
+    code { padding: 0.1em 0.35em; }
+    h1 { font-size: 1.5rem; }
+  </style>
+</head>
 <body>
   <h1>md package repositories</h1>
-  <p>Placeholder — populated automatically on the next Release workflow run.</p>
-  <p>See <a href="https://github.com/SihanTeng/md/blob/main/docs/distribution.md">distribution docs</a>.</p>
-</body></html>
+  <p>Static APT and DNF repos for <a href="https://github.com/SihanTeng/md">md</a>, published from GitHub Releases (no third-party account). Current version: <strong>0.3.0</strong>.</p>
+
+  <h2>Debian / Ubuntu (APT)</h2>
+  <pre>echo "deb [trusted=yes] https://sihanteng.github.io/md/apt ./" | sudo tee /etc/apt/sources.list.d/md.list
+sudo apt update
+sudo apt install md</pre>
+
+  <h2>Fedora / RHEL (DNF)</h2>
+  <pre>sudo tee /etc/yum.repos.d/md.repo &lt;&lt;'EOF'
+[md]
+name=md
+baseurl=https://sihanteng.github.io/md/rpm
+enabled=1
+gpgcheck=0
+EOF
+sudo dnf install md</pre>
+
+  <p><a href="https://sihanteng.github.io/md/apt/">Browse APT</a> · <a href="https://sihanteng.github.io/md/rpm/">Browse RPM</a> · <a href="https://github.com/SihanTeng/md/releases">All releases</a></p>
+</body>
+</html>

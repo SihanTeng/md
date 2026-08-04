@@ -1,0 +1,8 @@
+Origin: md
+Label: md
+Suite: stable
+Codename: stable
+Architectures: amd64
+Components: main
+Description: md APT repository (GitHub Pages)
+Date: Tue, 04 Aug 2026 03:27:49 +0000

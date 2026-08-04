@@ -1,0 +1,15 @@
+Package: md
+Version: 0.3.0
+Architecture: amd64
+Maintainer: SihanTeng
+Installed-Size: 19937
+Depends: libwebkit2gtk-4.1-0, libgtk-3-0
+Filename: ./md_0.3.0_amd64.deb
+Size: 6320196
+MD5sum: d850e660980d5715d7ce1254e4729f9c
+SHA1: efcd4be542119b8e73c5679b6faf22ae25d4a674
+SHA256: 3a244ed9306c6dbed3147ced18ec2008fab2202fb72d1a05ba612feb57806541
+Priority: optional
+Description: Markdown viewer and editor
+ A calm, cross-platform markdown viewer and editor with WYSIWYG editing and present mode.
+
