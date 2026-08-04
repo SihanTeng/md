@@ -129,17 +129,20 @@ export default function App() {
     return () => unlisten?.();
   }, []);
 
-  // Auto-save: write 2s after the last edit, only for files that already
-  // have a path (untitled docs wait for an explicit save-as)
+  // Auto-save: write 2s after typing stops (every inactivity pause), only
+  // for files that already have a path (untitled docs wait for save-as).
+  // A save in flight skips scheduling; isSaving flipping back re-runs the
+  // effect, so edits that landed during the write still get their own save.
   const { saveDocument } = actions;
+  const isSaving = useDocumentStore((s) => s.isSaving);
   // biome-ignore lint/correctness/useExhaustiveDependencies: editTick is the debounce trigger — each keystroke resets the timer
   useEffect(() => {
-    if (!autoSave || !dirty || !docPath) return;
+    if (!autoSave || !dirty || !docPath || isSaving) return;
     const timer = setTimeout(() => {
       void saveDocument();
     }, 2000);
     return () => clearTimeout(timer);
-  }, [autoSave, dirty, docPath, editTick, saveDocument]);
+  }, [autoSave, dirty, docPath, editTick, isSaving, saveDocument]);
 
   // Menu commands — shared by the native macOS menu (via the Rust 'menu'
   // event) and the in-window MenuBar used on Linux/Windows
@@ -164,6 +167,9 @@ export default function App() {
           break;
         case 'file_export_html':
           void actions.exportHtml();
+          break;
+        case 'file_export_docx':
+          void actions.exportDocx();
           break;
         case 'file_export_pdf':
           void actions.exportPdf();
@@ -205,6 +211,9 @@ export default function App() {
   // On macOS the native menu's own accelerators still work alongside these.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // Ignore key auto-repeat: holding a shortcut would re-fire the command
+      // on every repeat tick (a held Ctrl+S stacked one save dialog per tick).
+      if (e.repeat) return;
       const combo = comboFromEvent(e);
       if (!combo || !hasModifier(combo)) return;
       const commandId = commandForCombo(combo);

@@ -4,24 +4,31 @@ import { ask } from '@tauri-apps/plugin-dialog';
 import type { Editor } from '@tiptap/react';
 import { useCallback, useMemo } from 'react';
 import { buildExportHtmlDocument } from '../lib/export';
+import { markdownToDocxBase64, type ResolvedImage } from '../lib/markdown/docx';
 import { joinFrontmatter, splitFrontmatter } from '../lib/markdown/frontmatter';
 import { fileNameFromPath, htmlToMarkdown, markdownToHtml } from '../lib/markdown/io';
+import { isLinux } from '../lib/platform';
 import {
   clearRecent,
   dirNameFromPath,
+  exportPdfToFile,
   fileMtime,
   listRecent,
   loadSession,
   pickDirectory,
+  pickExportDocxPath,
   pickExportHtmlPath,
+  pickExportPdfPath,
   pickOpenPath,
   pickSavePath,
   printWindow,
   pushRecent,
+  readBinaryFileBase64,
   readTextFile,
   removeRecent,
   renameFile,
   saveSession,
+  writeBinaryFile,
   writeTextFile,
 } from '../lib/tauri/files';
 import { useDocumentStore } from '../stores/documentStore';
@@ -69,6 +76,71 @@ function currentBodyMarkdown(editor: Editor | null): string {
   return useDocumentStore.getState().contentMarkdown;
 }
 
+function base64ToBytes(b64: string): Uint8Array {
+  return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+}
+
+/** Word can only embed these — webp/svg/avif exports drop the image. */
+function docxImageType(name: string): ResolvedImage['type'] | null {
+  const ext = name.toLowerCase().match(/\.([a-z0-9]+)(?:[?#]|$)/)?.[1] ?? '';
+  if (ext === 'png' || ext === 'gif' || ext === 'bmp') return ext;
+  if (ext === 'jpg' || ext === 'jpeg') return 'jpg';
+  return null;
+}
+
+/** Max content width on a Word page ≈ 6.5in at 96dpi. */
+const DOCX_MAX_IMAGE_WIDTH = 624;
+
+async function docxImageSize(dataUrl: string): Promise<{ width: number; height: number } | null> {
+  try {
+    const img = new Image();
+    img.src = dataUrl;
+    await img.decode();
+    return { width: img.naturalWidth, height: img.naturalHeight };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Image resolver for the DOCX export: local files (relative to the
+ * document's folder) and data: URIs from pasted images. Remote URLs and
+ * formats Word can't embed are dropped (the lib falls back to alt text).
+ */
+async function resolveExportImage(src: string, docDir: string | null) {
+  try {
+    let bytes: Uint8Array;
+    let type: ResolvedImage['type'] | null;
+    let dataUrl: string;
+    if (src.startsWith('data:')) {
+      const mime = src.slice(5, src.indexOf(';'));
+      type = docxImageType(`.${mime.split('/')[1] ?? ''}`);
+      if (!type) return null;
+      bytes = base64ToBytes(src.slice(src.indexOf(',') + 1));
+      dataUrl = src;
+    } else {
+      if (!docDir || /^(https?:)?\/\//i.test(src)) return null;
+      type = docxImageType(src);
+      if (!type) return null;
+      const full = src.startsWith('/') ? src : `${docDir}/${src}`;
+      const b64 = await readBinaryFileBase64(full);
+      bytes = base64ToBytes(b64);
+      dataUrl = `data:image/${type === 'jpg' ? 'jpeg' : type};base64,${b64}`;
+    }
+    const size = await docxImageSize(dataUrl);
+    if (!size) return null;
+    const scale = Math.min(1, DOCX_MAX_IMAGE_WIDTH / size.width);
+    return {
+      data: bytes,
+      type,
+      width: Math.round(size.width * scale),
+      height: Math.round(size.height * scale),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function useDocumentActions(editor: Editor | null) {
   const path = useDocumentStore((s) => s.path);
   const title = useDocumentStore((s) => s.title);
@@ -83,6 +155,8 @@ export function useDocumentActions(editor: Editor | null) {
   const setError = useDocumentStore((s) => s.setError);
   const setPresentOpen = useDocumentStore((s) => s.setPresentOpen);
   const setIsOpening = useDocumentStore((s) => s.setIsOpening);
+  const setIsSaving = useDocumentStore((s) => s.setIsSaving);
+  const setLastSavedAt = useDocumentStore((s) => s.setLastSavedAt);
   const setWorkspace = useDocumentStore((s) => s.setWorkspace);
   const setSidebarMode = useDocumentStore((s) => s.setSidebarMode);
   const setFileMtime = useDocumentStore((s) => s.setFileMtime);
@@ -184,6 +258,10 @@ export function useDocumentActions(editor: Editor | null) {
   }, [dirty, loadFromPath, setError, setIsOpening]);
 
   const saveDocument = useCallback(async () => {
+    // Re-entrancy guard, mirroring openDocument's isOpening: without it, a
+    // second trigger (repeat tick, double-click) stacked another save dialog.
+    if (useDocumentStore.getState().isSaving) return;
+    setIsSaving(true);
     try {
       setError(null);
       const body = currentBodyMarkdown(editor);
@@ -205,11 +283,14 @@ export function useDocumentActions(editor: Editor | null) {
       setContentMarkdown(body);
       setDirty(stillDirty);
       setHasDocument(true);
+      setLastSavedAt(Date.now());
       const recent = await pushRecent(dest);
       setRecent(recent);
       await setWindowTitle(name, stillDirty);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setIsSaving(false);
     }
   }, [
     editor,
@@ -219,6 +300,8 @@ export function useDocumentActions(editor: Editor | null) {
     setError,
     setFileMtime,
     setHasDocument,
+    setIsSaving,
+    setLastSavedAt,
     setPath,
     setRecent,
     setTitle,
@@ -226,6 +309,9 @@ export function useDocumentActions(editor: Editor | null) {
   ]);
 
   const saveDocumentAs = useCallback(async () => {
+    // Same re-entrancy guard as saveDocument — it opens the same dialog.
+    if (useDocumentStore.getState().isSaving) return;
+    setIsSaving(true);
     try {
       setError(null);
       const body = currentBodyMarkdown(editor);
@@ -241,11 +327,14 @@ export function useDocumentActions(editor: Editor | null) {
       setTitle(name);
       setContentMarkdown(body);
       setDirty(stillDirty);
+      setLastSavedAt(Date.now());
       const recent = await pushRecent(dest);
       setRecent(recent);
       await setWindowTitle(name, stillDirty);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setIsSaving(false);
     }
   }, [
     editor,
@@ -254,6 +343,8 @@ export function useDocumentActions(editor: Editor | null) {
     setDirty,
     setError,
     setFileMtime,
+    setIsSaving,
+    setLastSavedAt,
     setPath,
     setRecent,
     setTitle,
@@ -311,15 +402,45 @@ export function useDocumentActions(editor: Editor | null) {
     }
   }, [editor, setError]);
 
-  /** Export to PDF via the system print dialog ("Save as PDF"). */
+  /**
+   * Export to PDF. Linux writes the file directly via WebKitGTK's
+   * print-to-file operation (no print dialog); macOS/Windows keep the
+   * system print dialog, whose "Save as PDF" is the native path there.
+   */
   const exportPdf = useCallback(async () => {
     try {
       setError(null);
-      await printWindow();
+      if (!isLinux) {
+        await printWindow();
+        return;
+      }
+      const s = useDocumentStore.getState();
+      const base = s.title.replace(/\.(md|markdown|mdown|txt)$/i, '') || 'Untitled';
+      const dest = await pickExportPdfPath(`${base}.pdf`);
+      if (!dest) return;
+      await exportPdfToFile(dest);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
   }, [setError]);
+
+  /** Export the current document as a Word (.docx) file. */
+  const exportDocx = useCallback(async () => {
+    try {
+      setError(null);
+      const s = useDocumentStore.getState();
+      const base = s.title.replace(/\.(md|markdown|mdown|txt)$/i, '') || 'Untitled';
+      const dest = await pickExportDocxPath(`${base}.docx`);
+      if (!dest) return;
+      const docDir = s.path ? dirNameFromPath(s.path) : null;
+      const base64 = await markdownToDocxBase64(currentBodyMarkdown(editor), (src) =>
+        resolveExportImage(src, docDir),
+      );
+      await writeBinaryFile(dest, base64);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }, [editor, setError]);
 
   /** Copy the rendered document to the clipboard as rich HTML. */
   const copyHtml = useCallback(async () => {
@@ -426,6 +547,7 @@ export function useDocumentActions(editor: Editor | null) {
       checkExternalChange,
       exportHtml,
       exportPdf,
+      exportDocx,
       copyHtml,
     }),
     [
@@ -447,6 +569,7 @@ export function useDocumentActions(editor: Editor | null) {
       checkExternalChange,
       exportHtml,
       exportPdf,
+      exportDocx,
       copyHtml,
     ],
   );

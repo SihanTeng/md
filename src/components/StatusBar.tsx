@@ -1,6 +1,10 @@
 import { openHref } from '../lib/openHref';
 import { useDocumentStore } from '../stores/documentStore';
 
+function formatSavedAt(t: number): string {
+  return new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
 export function StatusBar() {
   const path = useDocumentStore((s) => s.path);
   const hasDocument = useDocumentStore((s) => s.hasDocument);
@@ -8,6 +12,8 @@ export function StatusBar() {
   const charCount = useDocumentStore((s) => s.charCount);
   const cursorLine = useDocumentStore((s) => s.cursorLine);
   const dirty = useDocumentStore((s) => s.dirty);
+  const isSaving = useDocumentStore((s) => s.isSaving);
+  const lastSavedAt = useDocumentStore((s) => s.lastSavedAt);
   const error = useDocumentStore((s) => s.error);
   const autoSave = useDocumentStore((s) => s.autoSave);
   const setAutoSave = useDocumentStore((s) => s.setAutoSave);
@@ -34,8 +40,14 @@ export function StatusBar() {
         ) : (
           <span className="truncate">Unsaved document</span>
         )}
-        {dirty && !error ? (
-          <span className="shrink-0 text-[var(--color-ink-secondary)]">Edited</span>
+        {error ? null : isSaving ? (
+          <span className="shrink-0 text-[var(--color-ink-secondary)]">Saving…</span>
+        ) : dirty ? (
+          <span className="shrink-0 text-[var(--color-ink-secondary)]">Unsaved changes</span>
+        ) : path ? (
+          <span className="shrink-0">
+            {lastSavedAt ? `Saved ${formatSavedAt(lastSavedAt)}` : 'Saved'}
+          </span>
         ) : null}
       </div>
       <div className="flex shrink-0 items-center gap-3 tabular-nums">

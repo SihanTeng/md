@@ -46,6 +46,9 @@ interface DocumentState {
   autoSave: boolean;
   error: string | null;
   isOpening: boolean;
+  isSaving: boolean;
+  /** Wall-clock ms of the last successful save — StatusBar's "Saved HH:MM". */
+  lastSavedAt: number | null;
 
   setPath: (path: string | null) => void;
   setTitle: (title: string) => void;
@@ -66,6 +69,8 @@ interface DocumentState {
   setAutoSave: (autoSave: boolean) => void;
   setError: (error: string | null) => void;
   setIsOpening: (isOpening: boolean) => void;
+  setIsSaving: (isSaving: boolean) => void;
+  setLastSavedAt: (t: number | null) => void;
   loadDocument: (opts: {
     title?: string;
     markdown?: string;
@@ -99,6 +104,8 @@ export const useDocumentStore = create<DocumentState>((set) => ({
   autoSave: typeof window !== 'undefined' && window.localStorage.getItem('md-autosave') !== '0',
   error: null,
   isOpening: false,
+  isSaving: false,
+  lastSavedAt: null,
 
   setPath: (path) => set({ path }),
   setTitle: (title) => set({ title }),
@@ -122,6 +129,8 @@ export const useDocumentStore = create<DocumentState>((set) => ({
   },
   setError: (error) => set({ error }),
   setIsOpening: (isOpening) => set({ isOpening }),
+  setIsSaving: (isSaving) => set({ isSaving }),
+  setLastSavedAt: (lastSavedAt) => set({ lastSavedAt }),
   loadDocument: (opts) =>
     set((s) => ({
       path: opts.path ?? null,
@@ -139,5 +148,6 @@ export const useDocumentStore = create<DocumentState>((set) => ({
       charCount: 0,
       cursorLine: 1,
       error: null,
+      lastSavedAt: null,
     })),
 }));

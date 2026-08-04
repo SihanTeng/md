@@ -395,6 +395,7 @@ function buildSections(
         item('file_save_as'),
         sep,
         item('file_export_html'),
+        item('file_export_docx'),
         item('file_export_pdf'),
         sep,
         item('app_check_updates'),

@@ -238,6 +238,21 @@ fn read_binary_file(path: String) -> Result<String, String> {
     Ok(base64::engine::general_purpose::STANDARD.encode(bytes))
 }
 
+/// Write base64-decoded bytes to a file — binary exports (e.g. DOCX).
+#[tauri::command]
+fn write_binary_file(path: String, data_base64: String) -> Result<(), String> {
+    use base64::Engine as _;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(data_base64)
+        .map_err(|e| format!("Failed to decode data: {e}"))?;
+    if let Some(parent) = Path::new(&path).parent() {
+        if !parent.as_os_str().is_empty() && !parent.exists() {
+            fs::create_dir_all(parent).map_err(|e| format!("Failed to create directory: {e}"))?;
+        }
+    }
+    fs::write(&path, bytes).map_err(|e| format!("Failed to write file: {e}"))
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DirEntry {
@@ -357,13 +372,112 @@ fn file_mtime(path: String) -> Result<u64, String> {
         .as_millis() as u64)
 }
 
-/// System print dialog — the PDF export path (users choose "Save as PDF").
+/// System print dialog — the PDF export path on macOS/Windows ("Save as
+/// PDF" / "Microsoft Print to PDF"). Linux exports directly, see export_pdf.
 #[tauri::command]
 fn print_window(app: tauri::AppHandle) -> Result<(), String> {
     let win = app
         .get_webview_window("main")
         .ok_or_else(|| "main window not found".to_string())?;
     win.print().map_err(|e| e.to_string())
+}
+
+// GtkPrinter is unbound in gtk-sys 0.18, so the four symbols the PDF export
+// needs are declared here (opaque pointers; libgtk-3 is already linked).
+#[cfg(target_os = "linux")]
+type GtkPrinterPtr = *mut std::os::raw::c_void;
+
+#[cfg(target_os = "linux")]
+unsafe extern "C" {
+    fn gtk_enumerate_printers(
+        func: Option<unsafe extern "C" fn(GtkPrinterPtr, *mut std::os::raw::c_void) -> i32>,
+        data: *mut std::os::raw::c_void,
+        destroy: Option<unsafe extern "C" fn(*mut std::os::raw::c_void)>,
+        wait: i32,
+    );
+    fn gtk_printer_is_virtual(printer: GtkPrinterPtr) -> i32;
+    fn gtk_printer_accepts_pdf(printer: GtkPrinterPtr) -> i32;
+    fn gtk_printer_get_name(printer: GtkPrinterPtr) -> *const std::os::raw::c_char;
+}
+
+/// The GTK file backend's printer ("Print to File"), looked up by capability
+/// because its name is localized — hardcoding the English name breaks other
+/// locales. The built-in file backend reports synchronously even with
+/// wait=0, so this returns immediately; call it on the GTK main thread.
+#[cfg(target_os = "linux")]
+fn file_printer_name() -> Option<String> {
+    use std::ffi::CStr;
+    use std::os::raw::c_void;
+    unsafe extern "C" fn visit(printer: GtkPrinterPtr, data: *mut c_void) -> i32 {
+        let out = &mut *(data as *mut Option<String>);
+        if gtk_printer_is_virtual(printer) != 0 && gtk_printer_accepts_pdf(printer) != 0 {
+            let name = gtk_printer_get_name(printer);
+            if !name.is_null() {
+                *out = Some(CStr::from_ptr(name).to_string_lossy().into_owned());
+                return 1; // stop enumeration
+            }
+        }
+        0
+    }
+    let mut found = None;
+    unsafe {
+        gtk_enumerate_printers(Some(visit), &mut found as *mut _ as *mut c_void, None, 0);
+    }
+    found
+}
+
+/// Direct PDF export (Linux only): drive the WebKitGTK print operation at
+/// the file backend, which renders the print stylesheet straight to the
+/// output URI — no print dialog. Async so the wait never blocks the GTK
+/// main loop. Other platforms keep the system print dialog (print_window).
+#[cfg(target_os = "linux")]
+#[tauri::command]
+async fn export_pdf(app: tauri::AppHandle, path: String) -> Result<(), String> {
+    let win = app
+        .get_webview_window("main")
+        .ok_or_else(|| "main window not found".to_string())?;
+    let (tx, rx) = std::sync::mpsc::channel::<Result<(), String>>();
+    let path_in_closure = path.clone();
+    win.with_webview(move |webview| {
+        use webkit2gtk::PrintOperationExt;
+        let op = webkit2gtk::PrintOperation::new(&webview.inner());
+        let settings = gtk::PrintSettings::new();
+        // Selecting the file backend's printer is what makes the output URI
+        // effective; without it WebKitGTK prints to the default CUPS queue
+        // (a broken queue surfaced as "PDF export failed: Broken pipe").
+        let printer = file_printer_name().unwrap_or_else(|| "Print to File".to_string());
+        settings.set(gtk::PRINT_SETTINGS_PRINTER, Some(&printer));
+        settings.set(gtk::PRINT_SETTINGS_OUTPUT_FILE_FORMAT, Some("pdf"));
+        settings.set(
+            gtk::PRINT_SETTINGS_OUTPUT_URI,
+            Some(&format!("file://{path_in_closure}")),
+        );
+        op.set_print_settings(&settings);
+        let tx_failed = tx.clone();
+        op.connect_finished(move |_| {
+            let _ = tx.send(Ok(()));
+        });
+        op.connect_failed(move |_, err| {
+            let _ = tx_failed.send(Err(format!("PDF export failed: {err}")));
+        });
+        op.print();
+        // print() is async; keep our reference until the operation is over
+        // rather than rely on GTK holding it (one tiny GObject per export).
+        std::mem::forget(op);
+    })
+    .map_err(|e| e.to_string())?;
+    // The print operation runs on the GTK main loop; wait on a worker thread.
+    let printed = tauri::async_runtime::spawn_blocking(move || rx.recv())
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|_| "PDF export did not complete".to_string())?;
+    printed?;
+    // `finished` alone doesn't prove output (a misrouted job can still
+    // finish) — confirm the file actually landed.
+    match fs::metadata(&path) {
+        Ok(meta) if meta.len() > 0 => Ok(()),
+        _ => Err("PDF export produced no file".to_string()),
+    }
 }
 
 /// Destroy the main window after the frontend confirmed the close.
@@ -397,6 +511,8 @@ fn build_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let sep3 = PredefinedMenuItem::separator(app)?;
     let export_html =
         MenuItem::with_id(app, "file_export_html", "Export HTML…", true, None::<&str>)?;
+    let export_docx =
+        MenuItem::with_id(app, "file_export_docx", "Export Word…", true, None::<&str>)?;
     let export_pdf = MenuItem::with_id(app, "file_export_pdf", "Export PDF…", true, None::<&str>)?;
     let check_updates = MenuItem::with_id(
         app,
@@ -419,6 +535,7 @@ fn build_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
             &save_as,
             &sep2,
             &export_html,
+            &export_docx,
             &export_pdf,
             &sep3,
             &check_updates,
@@ -472,6 +589,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             read_text_file,
             write_text_file,
+            write_binary_file,
             list_recent,
             push_recent,
             clear_recent,
@@ -487,6 +605,8 @@ pub fn run() {
             save_session,
             file_mtime,
             print_window,
+            #[cfg(target_os = "linux")]
+            export_pdf,
             close_window,
             force_quit
         ])

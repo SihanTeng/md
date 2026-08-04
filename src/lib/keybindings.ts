@@ -34,6 +34,7 @@ export const COMMANDS = [
   { commandId: 'file_save_as', label: 'Save As…', section: 'File', defaultCombo: 'Ctrl+Shift+S' },
   { commandId: 'file_export_html', label: 'Export HTML…', section: 'File', defaultCombo: null },
   { commandId: 'file_export_pdf', label: 'Export PDF…', section: 'File', defaultCombo: null },
+  { commandId: 'file_export_docx', label: 'Export Word…', section: 'File', defaultCombo: null },
   { commandId: 'edit_find', label: 'Find…', section: 'Edit', defaultCombo: 'Ctrl+F' },
   { commandId: 'edit_copy_html', label: 'Copy as HTML', section: 'Edit', defaultCombo: null },
   { commandId: 'view_present', label: 'Present', section: 'View', defaultCombo: 'Ctrl+Shift+P' },

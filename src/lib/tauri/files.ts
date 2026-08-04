@@ -21,6 +21,11 @@ export async function writeTextFile(
   await invoke('write_text_file', { path, contents, createNew: opts?.createNew ?? false });
 }
 
+/** Write base64-encoded bytes — binary exports like DOCX. */
+export async function writeBinaryFile(path: string, dataBase64: string): Promise<void> {
+  await invoke('write_binary_file', { path, dataBase64 });
+}
+
 export async function listRecent(): Promise<RecentFile[]> {
   return invoke<RecentFile[]>('list_recent');
 }
@@ -114,6 +119,11 @@ export async function printWindow(): Promise<void> {
   await invoke('print_window');
 }
 
+/** Render the document straight to a PDF file, no dialog (Linux only). */
+export async function exportPdfToFile(path: string): Promise<void> {
+  await invoke('export_pdf', { path });
+}
+
 /** Destroy the main window after a confirmed close. */
 export async function closeWindow(): Promise<void> {
   await invoke('close_window');
@@ -176,4 +186,18 @@ const HTML_FILTERS = [{ name: 'HTML', extensions: ['html'] }];
 /** Save-dialog for HTML export (`.html` extension, own filter). */
 export async function pickExportHtmlPath(defaultPath: string): Promise<string | null> {
   return save({ filters: HTML_FILTERS, defaultPath });
+}
+
+const DOCX_FILTERS = [{ name: 'Word', extensions: ['docx'] }];
+
+/** Save-dialog for Word export (`.docx` extension, own filter). */
+export async function pickExportDocxPath(defaultPath: string): Promise<string | null> {
+  return save({ filters: DOCX_FILTERS, defaultPath });
+}
+
+const PDF_FILTERS = [{ name: 'PDF', extensions: ['pdf'] }];
+
+/** Save-dialog for PDF export (`.pdf` extension, own filter). */
+export async function pickExportPdfPath(defaultPath: string): Promise<string | null> {
+  return save({ filters: PDF_FILTERS, defaultPath });
 }
