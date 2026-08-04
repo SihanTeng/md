@@ -2,8 +2,8 @@
 # workflow renders it (version + sha256) into the SihanTeng/homebrew-md tap
 # on every release via scripts/update-homebrew-cask.sh.
 cask "md" do
-  version "0.2.0"
-  sha256 "c46937c8b70316d00babc55d147a2341aed8c9a47d4b531535e7f1cee64ad1d0"
+  version "0.3.0"
+  sha256 "329cff90de726a404235dff0570242c962fff11fd2050c0793f19d231c70d4ff"
 
   url "https://github.com/SihanTeng/md/releases/download/v#{version}/md-#{version}-macos-universal.dmg"
   name "md"
