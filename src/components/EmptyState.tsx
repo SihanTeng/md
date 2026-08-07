@@ -21,8 +21,15 @@ export function EmptyState({ onNew, onOpen, onOpenFolder }: Props) {
     <div className="flex h-full flex-col items-center justify-center gap-6 px-8">
       <div className="h-[160px] w-[280px] overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-surface)] shadow-[var(--shadow-popover)]">
         {reduced ? (
-          <div className="flex h-full items-center justify-center text-[15px] font-medium text-[var(--color-ink)]">
-            TenLing
+          <div className="flex h-full flex-col items-center justify-center gap-2">
+            <img
+              src="/icon.png"
+              alt=""
+              width={48}
+              height={48}
+              className="rounded-[12px] shadow-md"
+            />
+            <span className="text-[15px] font-medium text-[var(--color-ink)]">TenLing</span>
           </div>
         ) : (
           <Suspense
