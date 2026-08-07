@@ -108,7 +108,7 @@ button {
 }
 
 /* Raw markdown markers revealed on the active line (live preview) */
-.ProseMirror .md-syntax {
+.ProseMirror .tl-syntax {
   color: var(--color-ink-tertiary);
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-size: 0.85em;
@@ -416,21 +416,21 @@ button {
 }
 
 /* Images */
-.md-image {
+.tl-image {
   margin: 0.85em 0;
 }
 
-.md-image img {
+.tl-image img {
   max-width: 100%;
   border-radius: var(--radius-md);
 }
 
-.md-image.ProseMirror-selectednode img {
+.tl-image.ProseMirror-selectednode img {
   outline: 2px solid var(--color-accent);
 }
 
 /* Raw markdown source bar, visible while the image is selected */
-.md-image-src {
+.tl-image-src {
   display: none;
   width: 100%;
   margin-top: 4px;
@@ -444,16 +444,16 @@ button {
   outline: none;
 }
 
-.md-image-src:focus {
+.tl-image-src:focus {
   border-color: var(--color-hairline-strong);
   color: var(--color-ink);
 }
 
-.md-image-src[readonly] {
+.tl-image-src[readonly] {
   opacity: 0.7;
 }
 
-.md-image.ProseMirror-selectednode .md-image-src {
+.tl-image.ProseMirror-selectednode .tl-image-src {
   display: block;
 }
 
@@ -554,7 +554,7 @@ button {
 }
 
 /* Preserved HTML comments render as muted chips (atom nodes) */
-.md-comment {
+.tl-comment {
   font-family: var(--font-mono);
   font-size: 0.82em;
   color: var(--color-ink-tertiary);
@@ -563,28 +563,28 @@ button {
   user-select: none;
 }
 
-.md-comment-inline {
+.tl-comment-inline {
   padding: 0.06em 0.35em;
 }
 
-.md-comment-block {
+.tl-comment-block {
   margin: 0.5em 0;
   padding: 0.3em 0.7em;
   border: 1px dashed var(--color-hairline-strong);
   white-space: pre-wrap;
 }
 
-.md-comment.ProseMirror-selectednode {
+.tl-comment.ProseMirror-selectednode {
   outline: 2px solid var(--color-accent);
 }
 
 /* Find & replace match highlights */
-.ProseMirror .md-find-match {
+.ProseMirror .tl-find-match {
   background: rgba(255, 214, 0, 0.35);
   border-radius: 2px;
 }
 
-.ProseMirror .md-find-match-active {
+.ProseMirror .tl-find-match-active {
   background: rgba(255, 150, 0, 0.55);
   outline: 1px solid rgba(200, 120, 0, 0.6);
 }
@@ -625,7 +625,7 @@ button {
 
   .doc-title,
   .cb-lang,
-  .md-image-src {
+  .tl-image-src {
     /* biome-ignore lint/complexity/noImportantStyles: inputs and badges must never print */
     display: none !important;
   }

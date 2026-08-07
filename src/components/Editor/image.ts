@@ -22,10 +22,10 @@ export function createImage() {
         let currentNode = node;
 
         const dom = document.createElement('div');
-        dom.className = 'md-image';
+        dom.className = 'tl-image';
         const img = document.createElement('img');
         const input = document.createElement('input');
-        input.className = 'md-image-src';
+        input.className = 'tl-image-src';
         input.spellcheck = false;
         input.setAttribute('aria-label', 'Image source (markdown)');
         dom.append(img, input);

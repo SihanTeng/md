@@ -30,7 +30,7 @@ export function MarkdownEditor({ initialHtml, onReady, onRename }: Props) {
     content: initialHtml || '<p></p>',
     editorProps: {
       attributes: {
-        class: 'md-prose focus:outline-none',
+        class: 'tl-prose focus:outline-none',
         spellcheck: 'true',
       },
       handlePaste: (view, event) => {

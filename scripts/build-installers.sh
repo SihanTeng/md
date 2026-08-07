@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build platform installers for md using Tauri.
+# Build platform installers for TenLing using Tauri.
 #
 # Usage:
 #   ./scripts/build-installers.sh              # current host OS only
@@ -11,7 +11,7 @@
 #
 # Cross-OS note: Tauri cannot cross-compile these bundles. Use GitHub Actions
 # (.github/workflows/release.yml) to produce every package from one tag.
-# Release assets are renamed to: md-{version}-{os}-{arch}.{ext}
+# Release assets are renamed to: tenling-{version}-{os}-{arch}.{ext}
 
 set -euo pipefail
 
@@ -68,7 +68,7 @@ Tauri must build each package on its native OS:
   Linux   →  .AppImage + .deb + .rpm      (this machine must be Linux, or use CI)
   Windows →  .msi                         (this machine must be Windows, or use CI)
 
-Release filenames (after CI normalize): md-{version}-{os}-{arch}.{ext}
+Release filenames (after CI normalize): tenling-{version}-{os}-{arch}.{ext}
 
 Recommended: push a version tag and let GitHub Actions build everything:
 
@@ -104,8 +104,8 @@ ensure_deps() {
 
   # Bundling updater artifacts (createUpdaterArtifacts) requires the signing
   # key. Fall back to the default key location when env vars are not set.
-  if [[ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" && -z "${TAURI_SIGNING_PRIVATE_KEY_PATH:-}" && -f "$HOME/.tauri/md.key" ]]; then
-    export TAURI_SIGNING_PRIVATE_KEY_PATH="$HOME/.tauri/md.key"
+  if [[ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" && -z "${TAURI_SIGNING_PRIVATE_KEY_PATH:-}" && -f "$HOME/.tauri/tenling.key" ]]; then
+    export TAURI_SIGNING_PRIVATE_KEY_PATH="$HOME/.tauri/tenling.key"
   fi
 }
 

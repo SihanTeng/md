@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pack and push the Chocolatey package for md.
+# Pack and push the Chocolatey package for TenLing.
 #
 # Usage:
 #   ./scripts/publish-chocolatey.sh <version> <msi-path> [--pack-only]
@@ -20,7 +20,7 @@ PACK_ONLY=0
 
 "$ROOT/scripts/update-chocolatey-package.sh" "$VERSION" "$MSI"
 
-PKG_DIR="$ROOT/packaging/chocolatey/md"
+PKG_DIR="$ROOT/packaging/chocolatey/tenling"
 SOURCE="${CHOCOLATEY_SOURCE:-https://push.chocolatey.org/}"
 
 if ! command -v choco >/dev/null 2>&1; then
@@ -30,12 +30,12 @@ fi
 
 (
   cd "$PKG_DIR"
-  choco pack md.nuspec --output-directory "$PKG_DIR"
+  choco pack tenling.nuspec --output-directory "$PKG_DIR"
 )
 
-NUPKG="$PKG_DIR/md.${VERSION}.nupkg"
+NUPKG="$PKG_DIR/tenling.${VERSION}.nupkg"
 if [[ ! -f "$NUPKG" ]]; then
-  NUPKG="$(find "$PKG_DIR" -maxdepth 1 -name "md*.nupkg" | head -1)"
+  NUPKG="$(find "$PKG_DIR" -maxdepth 1 -name "tenling*.nupkg" | head -1)"
 fi
 [[ -f "$NUPKG" ]] || { echo "nupkg not found after pack" >&2; exit 1; }
 echo "Packed $NUPKG"

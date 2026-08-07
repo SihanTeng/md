@@ -1,12 +1,12 @@
 [Desktop Entry]
 Type=Application
-Name=md
+Name=TenLing
 GenericName=Markdown Editor
 Comment=Calm Markdown viewer and editor
-Exec=md %F
-Icon=md
+Exec=tenling %F
+Icon=tenling
 Terminal=false
 Categories=Office;TextEditor;Utility;
 MimeType=text/markdown;text/x-markdown;
-StartupWMClass=md
-Keywords=markdown;editor;notes;
+StartupWMClass=tenling
+Keywords=markdown;editor;notes;tenling;

@@ -57,7 +57,7 @@ describe('keybindingStore', () => {
     expect(effectiveCombo('file_new')).toBe('Ctrl+Alt+N');
     expect(commandForCombo('Ctrl+Alt+N')).toBe('file_new');
     expect(commandForCombo('Ctrl+N')).toBeNull();
-    expect(JSON.parse(localStorage.getItem('md-keybindings') ?? '{}')).toEqual({
+    expect(JSON.parse(localStorage.getItem('tenling-keybindings') ?? '{}')).toEqual({
       file_new: 'Ctrl+Alt+N',
     });
   });
@@ -71,7 +71,7 @@ describe('keybindingStore', () => {
     expect(effectiveCombo('file_save')).toBe('Ctrl+Alt+S');
     useKeybindingStore.getState().resetAll();
     expect(effectiveCombo('file_save')).toBe('Ctrl+S');
-    expect(localStorage.getItem('md-keybindings')).toBeNull();
+    expect(localStorage.getItem('tenling-keybindings')).toBeNull();
   });
 
   it('every default combo is unique and dispatchable', () => {

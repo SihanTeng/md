@@ -38,11 +38,11 @@ turndown.addRule('underline', {
 turndown.addRule('mdComment', {
   filter: (node) => {
     if (node.nodeName !== 'DIV' && node.nodeName !== 'SPAN') return false;
-    return (node as HTMLElement).hasAttribute('data-md-comment');
+    return (node as HTMLElement).hasAttribute('data-tl-comment');
   },
   replacement: (_content, node) => {
     const el = node as HTMLElement;
-    const raw = decodeComment(el.getAttribute('data-md-comment') ?? '');
+    const raw = decodeComment(el.getAttribute('data-tl-comment') ?? '');
     return el.nodeName === 'DIV' ? `\n\n${raw}\n\n` : raw;
   },
 });

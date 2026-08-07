@@ -1,0 +1,33 @@
+# Maintainer: SihanTeng <https://github.com/SihanTeng>
+# Prebuilt package from GitHub Releases (AppImage).
+#
+# This file is a template: scripts/update-aur-pkgbuild.sh rewrites pkgver and
+# sha256sums on each release. Push to AUR with:
+#   ssh://aur@aur.archlinux.org/tenling-bin.git
+#
+# shellcheck disable=SC2034
+pkgname=tenling-bin
+pkgver=0.3.1
+pkgrel=1
+pkgdesc='TenLing — calm, cross-platform Markdown viewer and editor'
+arch=('x86_64')
+url='https://github.com/SihanTeng/tenling'
+license=('LicenseRef-Unknown')
+depends=('webkit2gtk-4.1' 'gtk3' 'libayatana-appindicator')
+optdepends=('xdg-utils: open links and file paths')
+provides=('tenling')
+conflicts=('tenling')
+options=('!strip' '!debug')
+source=(
+  "tenling-${pkgver}-linux-x64.AppImage::https://github.com/SihanTeng/tenling/releases/download/v${pkgver}/tenling-${pkgver}-linux-x64.AppImage"
+  "tenling.desktop"
+)
+sha256sums=(
+  'SKIP'
+  'SKIP'
+)
+
+package() {
+  install -Dm755 "tenling-${pkgver}-linux-x64.AppImage" "${pkgdir}/usr/bin/tenling"
+  install -Dm644 tenling.desktop "${pkgdir}/usr/share/applications/tenling.desktop"
+}

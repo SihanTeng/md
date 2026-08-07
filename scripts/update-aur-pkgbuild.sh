@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Update packaging/aur/md-bin/PKGBUILD (+ .SRCINFO) for a released version.
+# Update packaging/aur/tenling-bin/PKGBUILD (+ .SRCINFO) for a released version.
 #
 # Usage:
 #   ./scripts/update-aur-pkgbuild.sh <version> <appimage-path> [pkgbuild-dir]
@@ -12,9 +12,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERSION="${1:?usage: update-aur-pkgbuild.sh <version> <appimage-path> [pkgbuild-dir]}"
 APPIMAGE="${2:?usage: update-aur-pkgbuild.sh <version> <appimage-path> [pkgbuild-dir]}"
-DIR="${3:-$ROOT/packaging/aur/md-bin}"
+DIR="${3:-$ROOT/packaging/aur/tenling-bin}"
 PKGBUILD="$DIR/PKGBUILD"
-DESKTOP="$DIR/md.desktop"
+DESKTOP="$DIR/tenling.desktop"
 
 [[ -f "$PKGBUILD" ]] || { echo "missing $PKGBUILD" >&2; exit 1; }
 [[ -f "$APPIMAGE" ]] || { echo "missing $APPIMAGE" >&2; exit 1; }
@@ -44,29 +44,29 @@ if command -v makepkg >/dev/null 2>&1; then
   (cd "$DIR" && makepkg --printsrcinfo > .SRCINFO)
 else
   cat > "$DIR/.SRCINFO" <<EOF
-pkgbase = md-bin
+pkgbase = tenling-bin
 	pkgdesc = Calm, cross-platform Markdown viewer and editor
 	pkgver = ${VERSION}
 	pkgrel = 1
-	url = https://github.com/SihanTeng/md
+	url = https://github.com/SihanTeng/tenling
 	arch = x86_64
 	license = LicenseRef-Unknown
 	depends = webkit2gtk-4.1
 	depends = gtk3
 	depends = libayatana-appindicator
 	optdepends = xdg-utils: open links and file paths
-	provides = md
-	conflicts = md
+	provides = tenling
+	conflicts = tenling
 	options = !strip
 	options = !debug
-	source = md-${VERSION}-linux-x64.AppImage::https://github.com/SihanTeng/md/releases/download/v${VERSION}/md-${VERSION}-linux-x64.AppImage
-	source = md.desktop
+	source = tenling-${VERSION}-linux-x64.AppImage::https://github.com/SihanTeng/tenling/releases/download/v${VERSION}/tenling-${VERSION}-linux-x64.AppImage
+	source = tenling.desktop
 	sha256sums = ${SHA_APP}
 	sha256sums = ${SHA_DESK}
 
-pkgname = md-bin
+pkgname = tenling-bin
 EOF
   echo "wrote $DIR/.SRCINFO (makepkg not installed; used template)"
 fi
 
-echo "AUR package ready at $DIR (md-bin ${VERSION})"
+echo "AUR package ready at $DIR (tenling-bin ${VERSION})"

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { COMMANDS } from '../lib/keybindings';
 
-const STORAGE_KEY = 'md-keybindings';
+const STORAGE_KEY = 'tenling-keybindings';
 
 interface KeybindingState {
   /** commandId -> combo; commands missing here use their defaultCombo. */

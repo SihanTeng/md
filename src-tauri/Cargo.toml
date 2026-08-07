@@ -1,12 +1,12 @@
 [package]
-name = "md"
-version = "0.3.0"
-description = "Cross-platform markdown viewer and editor"
+name = "tenling"
+version = "0.3.1"
+description = "TenLing — calm cross-platform Markdown viewer and editor"
 authors = ["SihanTeng"]
 edition = "2021"
 
 [lib]
-name = "md_lib"
+name = "tenling_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

@@ -13,7 +13,7 @@ export async function checkForUpdates(manual = false): Promise<void> {
     const update = await check();
     if (!update) {
       if (manual) {
-        await message('You’re running the latest version of md.', {
+        await message('You’re running the latest version of TenLing.', {
           title: 'No update available',
           kind: 'info',
         });
@@ -22,7 +22,7 @@ export async function checkForUpdates(manual = false): Promise<void> {
     }
 
     const install = await ask(
-      `md ${update.version} is available (you have ${update.currentVersion}).\n\nDownload and install it now? The app will restart to finish updating.`,
+      `TenLing ${update.version} is available (you have ${update.currentVersion}).\n\nDownload and install it now? The app will restart to finish updating.`,
       { title: 'Update available', kind: 'info', okLabel: 'Update', cancelLabel: 'Later' },
     );
     if (!install) return;

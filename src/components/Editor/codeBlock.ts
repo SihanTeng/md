@@ -25,7 +25,7 @@ export function createCodeBlock(lowlight: Lowlight) {
         let currentNode = node;
 
         const pre = document.createElement('pre');
-        pre.className = 'md-code-block';
+        pre.className = 'tl-code-block';
         const code = document.createElement('code');
         if (node.attrs.language) code.className = `language-${node.attrs.language}`;
         pre.appendChild(code);
@@ -89,7 +89,7 @@ export function createCodeBlock(lowlight: Lowlight) {
   }).configure({
     lowlight,
     HTMLAttributes: {
-      class: 'md-code-block',
+      class: 'tl-code-block',
     },
   });
 }

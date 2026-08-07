@@ -1,19 +1,25 @@
 #!/usr/bin/env bash
-# md — one-line installer (macOS / Linux)
+# TenLing — one-line installer (macOS / Linux)
 #
-#   curl -fsSL https://raw.githubusercontent.com/SihanTeng/md/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/SihanTeng/tenling/main/install.sh | bash
 #
 # Downloads the latest GitHub Release for your platform and installs it.
 # Optional env:
-#   MD_VERSION=v0.2.0   pin a release tag (default: latest)
-#   MD_PREFIX=~/.local  AppImage install prefix (Linux)
-#   MD_FORCE=1          reinstall even if md is already on PATH
+#   TENLING_VERSION=v0.3.0   pin a release tag (default: latest)
+#   TENLING_PREFIX=~/.local  AppImage install prefix (Linux)
+#   TENLING_FORCE=1          reinstall even if tenling is already present
 
 set -euo pipefail
 
-REPO="SihanTeng/md"
+REPO="SihanTeng/tenling"
 API="https://api.github.com/repos/${REPO}"
 DOWNLOADS="https://github.com/${REPO}/releases/download"
+
+TENLING_VERSION="${TENLING_VERSION:-}"
+TENLING_PREFIX="${TENLING_PREFIX:-}"
+TENLING_FORCE="${TENLING_FORCE:-}"
+TENLING_USE_DEB="${TENLING_USE_DEB:-}"
+TENLING_USE_RPM="${TENLING_USE_RPM:-}"
 
 RED=$'\033[0;31m'
 GREEN=$'\033[0;32m'
@@ -49,7 +55,6 @@ detect_platform() {
       if [[ "$OS" == "linux" ]]; then
         error "Linux arm64 builds are not published yet (need x86_64)"
       fi
-      # macOS universal covers arm64
       ;;
     *) error "unsupported architecture: $arch" ;;
   esac
@@ -60,15 +65,14 @@ detect_platform() {
 # --- release metadata -------------------------------------------------------
 
 json_get() {
-  # Tiny JSON helper without jq: first matching "key": "value"
   local key="$1"
   sed -nE "s/.*\"${key}\"[[:space:]]*:[[:space:]]*\"([^\"]+)\".*/\1/p" | head -1
 }
 
 get_release() {
   local url json
-  if [[ -n "${MD_VERSION:-}" ]]; then
-    local tag="${MD_VERSION#v}"
+  if [[ -n "${TENLING_VERSION}" ]]; then
+    local tag="${TENLING_VERSION#v}"
     tag="v${tag}"
     info "using pinned version ${tag}"
     url="${API}/releases/tags/${tag}"
@@ -79,7 +83,7 @@ get_release() {
 
   json="$(curl -fsSL \
     -H "Accept: application/vnd.github+json" \
-    -H "User-Agent: md-install" \
+    -H "User-Agent: tenling-install" \
     "$url")" || error "failed to query GitHub releases (check network / rate limit)"
 
   TAG="$(printf '%s' "$json" | json_get tag_name)"
@@ -90,9 +94,8 @@ get_release() {
 }
 
 asset_url() {
-  # Prefer canonical names; fall back to any asset ending with suffix.
-  local want="$1"    # exact basename preferred
-  local suffix="$2"  # e.g. .dmg / .AppImage / .deb / .rpm
+  local want="$1"
+  local suffix="$2"
   local url
 
   url="$(printf '%s' "$RELEASE_JSON" \
@@ -110,7 +113,6 @@ asset_url() {
       | head -1)" || true
   fi
 
-  # Construct stable URL if API parse failed but we know the name
   if [[ -z "$url" && -n "$want" ]]; then
     url="${DOWNLOADS}/${TAG}/${want}"
   fi
@@ -132,12 +134,11 @@ install_macos() {
   need_cmd hdiutil
   need_cmd curl
 
-  local name="md-${VERSION}-macos-universal.dmg"
+  local name="tenling-${VERSION}-macos-universal.dmg"
   local url
   url="$(asset_url "$name" '\.dmg')"
-  # pre-normalize legacy name
   if ! curl -fsSIL "$url" >/dev/null 2>&1; then
-    name="md_${VERSION}_universal.dmg"
+    name="tenling_${VERSION}_universal.dmg"
     url="${DOWNLOADS}/${TAG}/${name}"
   fi
 
@@ -153,45 +154,43 @@ install_macos() {
   [[ -d "$mount" ]] || error "failed to mount DMG"
 
   local app
-  app="$(find "$mount" -maxdepth 2 -name 'md.app' -type d | head -1)"
+  app="$(find "$mount" -maxdepth 2 \( -name 'TenLing.app' -o -name 'tenling.app' \) -type d | head -1)"
   [[ -n "$app" ]] || {
     hdiutil detach "$mount" >/dev/null 2>&1 || true
-    error "md.app not found inside DMG"
+    error "TenLing.app not found inside DMG"
   }
 
-  info "installing to /Applications/md.app…"
-  if [[ -d /Applications/md.app ]]; then
-    if [[ -z "${MD_FORCE:-}" ]]; then
-      warn "/Applications/md.app already exists (set MD_FORCE=1 to replace)"
+  info "installing to /Applications/TenLing.app…"
+  if [[ -d /Applications/TenLing.app ]]; then
+    if [[ -z "${TENLING_FORCE}" ]]; then
+      warn "/Applications/TenLing.app already exists (set TENLING_FORCE=1 to replace)"
     fi
-    rm -rf /Applications/md.app
+    rm -rf /Applications/TenLing.app
   fi
-  cp -R "$app" /Applications/md.app
+  cp -R "$app" /Applications/TenLing.app
   hdiutil detach "$mount" >/dev/null 2>&1 || true
 
-  # Clear quarantine so Gatekeeper is less noisy on unsigned builds
   if command -v xattr >/dev/null 2>&1; then
-    xattr -dr com.apple.quarantine /Applications/md.app 2>/dev/null || true
+    xattr -dr com.apple.quarantine /Applications/TenLing.app 2>/dev/null || true
   fi
 
-  info "installed /Applications/md.app"
-  printf '\n%sOpen md from Applications, or run:%s\n  open -a md\n\n' "$CYAN" "$NC"
+  info "installed /Applications/TenLing.app"
+  printf '\n%sOpen TenLing from Applications, or run:%s\n  open -a TenLing\n\n' "$CYAN" "$NC"
   printf '%sIf macOS blocks the app:%s System Settings → Privacy & Security → Open Anyway\n\n' "$YELLOW" "$NC"
 }
 
 install_linux() {
   need_cmd curl
 
-  local prefix="${MD_PREFIX:-$HOME/.local}"
+  local prefix="${TENLING_PREFIX:-$HOME/.local}"
   local bindir="${prefix}/bin"
   mkdir -p "$bindir"
 
-  # Prefer native packages when the package manager is present
-  if command -v dpkg >/dev/null 2>&1 && [[ "$(id -u)" -eq 0 || -n "${MD_USE_DEB:-}" ]]; then
+  if command -v dpkg >/dev/null 2>&1 && [[ "$(id -u)" -eq 0 || -n "${TENLING_USE_DEB}" ]]; then
     install_linux_deb
     return
   fi
-  if command -v rpm >/dev/null 2>&1 && [[ "$(id -u)" -eq 0 || -n "${MD_USE_RPM:-}" ]]; then
+  if command -v rpm >/dev/null 2>&1 && [[ "$(id -u)" -eq 0 || -n "${TENLING_USE_RPM}" ]]; then
     install_linux_rpm
     return
   fi
@@ -201,11 +200,11 @@ install_linux() {
 
 install_linux_appimage() {
   local bindir="$1"
-  local name="md-${VERSION}-linux-x64.AppImage"
+  local name="tenling-${VERSION}-linux-x64.AppImage"
   local url
   url="$(asset_url "$name" '\.AppImage')"
   if ! curl -fsSIL "$url" >/dev/null 2>&1; then
-    name="md_${VERSION}_amd64.AppImage"
+    name="tenling_${VERSION}_amd64.AppImage"
     url="${DOWNLOADS}/${TAG}/${name}"
   fi
 
@@ -217,47 +216,47 @@ install_linux_appimage() {
   download "$url" "$out"
   chmod +x "$out"
 
-  local dest="${bindir}/md"
-  if [[ -e "$dest" && -z "${MD_FORCE:-}" ]]; then
-    warn "${dest} already exists (set MD_FORCE=1 to replace)"
+  local dest="${bindir}/tenling"
+  if [[ -e "$dest" && -z "${TENLING_FORCE}" ]]; then
+    warn "${dest} already exists (set TENLING_FORCE=1 to replace)"
   fi
   mv -f "$out" "$dest"
   info "installed ${dest}"
 
-  if ! command -v md >/dev/null 2>&1; then
+  if ! command -v tenling >/dev/null 2>&1; then
     warn "add to PATH:  export PATH=\"${bindir}:\$PATH\""
     if [[ -f "$HOME/.bashrc" ]] && ! grep -qF "${bindir}" "$HOME/.bashrc" 2>/dev/null; then
-      printf '\n# md markdown editor\nexport PATH="%s:$PATH"\n' "$bindir" >> "$HOME/.bashrc"
+      printf '\n# TenLing markdown editor\nexport PATH="%s:$PATH"\n' "$bindir" >> "$HOME/.bashrc"
       info "appended PATH export to ~/.bashrc (open a new shell)"
     fi
   fi
 
-  # Desktop entry (best-effort)
   local apps="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
   mkdir -p "$apps"
-  cat > "${apps}/md.desktop" <<EOF
+  cat > "${apps}/tenling.desktop" <<EOF
 [Desktop Entry]
 Type=Application
-Name=md
+Name=TenLing
 GenericName=Markdown Editor
 Comment=Calm Markdown viewer and editor
 Exec=${dest} %F
-Icon=md
+Icon=tenling
 Terminal=false
 Categories=Office;TextEditor;Utility;
 MimeType=text/markdown;text/x-markdown;
-StartupWMClass=md
+StartupWMClass=tenling
+Keywords=markdown;editor;notes;tenling;
 EOF
-  info "desktop entry: ${apps}/md.desktop"
+  info "desktop entry: ${apps}/tenling.desktop"
 
-  printf '\n%sRun:%s\n  md\n\n' "$CYAN" "$NC"
+  printf '\n%sRun:%s\n  tenling\n\n' "$CYAN" "$NC"
 }
 
 install_linux_deb() {
-  local name="md-${VERSION}-linux-x64.deb"
+  local name="tenling-${VERSION}-linux-x64.deb"
   local url
   url="$(asset_url "$name" '\.deb')"
-  local tmp="${TMPDIR:-/tmp}/md-install-$$.deb"
+  local tmp="${TMPDIR:-/tmp}/tenling-install-$$.deb"
   download "$url" "$tmp"
   info "installing deb (needs root)…"
   if [[ "$(id -u)" -eq 0 ]]; then
@@ -267,14 +266,14 @@ install_linux_deb() {
   fi
   rm -f "$tmp"
   info "installed via dpkg"
-  printf '\n%sRun:%s\n  md\n\n' "$CYAN" "$NC"
+  printf '\n%sRun:%s\n  tenling\n\n' "$CYAN" "$NC"
 }
 
 install_linux_rpm() {
-  local name="md-${VERSION}-linux-x64.rpm"
+  local name="tenling-${VERSION}-linux-x64.rpm"
   local url
   url="$(asset_url "$name" '\.rpm')"
-  local tmp="${TMPDIR:-/tmp}/md-install-$$.rpm"
+  local tmp="${TMPDIR:-/tmp}/tenling-install-$$.rpm"
   download "$url" "$tmp"
   info "installing rpm (needs root)…"
   if command -v dnf >/dev/null 2>&1; then
@@ -284,13 +283,13 @@ install_linux_rpm() {
   fi
   rm -f "$tmp"
   info "installed via rpm/dnf"
-  printf '\n%sRun:%s\n  md\n\n' "$CYAN" "$NC"
+  printf '\n%sRun:%s\n  tenling\n\n' "$CYAN" "$NC"
 }
 
 # --- main -------------------------------------------------------------------
 
 main() {
-  printf '\n%s md%s — Markdown editor installer\n\n' "$CYAN" "$NC"
+  printf '\n%s TenLing%s — Markdown editor installer\n\n' "$CYAN" "$NC"
   need_cmd curl
   need_cmd uname
   detect_platform

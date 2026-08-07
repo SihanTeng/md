@@ -3,16 +3,16 @@
 # rewrite a release's assets and latest.json so names stay consistent.
 #
 # Canonical name:
-#   md-{version}-{os}-{arch}.{ext}
-#   md-{version}-{os}-{arch}.{ext}.sig
+#   tenling-{version}-{os}-{arch}.{ext}
+#   tenling-{version}-{os}-{arch}.{ext}.sig
 #
 # Examples:
-#   md-0.2.0-macos-universal.dmg
-#   md-0.2.0-linux-x64.AppImage
-#   md-0.2.0-linux-x64.deb
-#   md-0.2.0-linux-x64.rpm
-#   md-0.2.0-windows-x64.msi
-#   md-0.2.0-macos-universal.app.tar.gz   (OTA updater payload)
+#   tenling-0.2.0-macos-universal.dmg
+#   tenling-0.2.0-linux-x64.AppImage
+#   tenling-0.2.0-linux-x64.deb
+#   tenling-0.2.0-linux-x64.rpm
+#   tenling-0.2.0-windows-x64.msi
+#   tenling-0.2.0-macos-universal.app.tar.gz   (OTA updater payload)
 #
 # Usage:
 #   # Rename files in a directory (prints mapping old→new):
@@ -38,50 +38,52 @@ die()  { printf 'error: %s\n' "$*" >&2; exit 1; }
 # Prints the new basename, or nothing if the file should be left alone.
 canonical_name() {
   local version="$1" base="$2"
-  local lower
+  local lower sig="" stem
   lower="$(printf '%s' "$base" | tr '[:upper:]' '[:lower:]')"
 
-  # Already canonical?
-  if [[ "$base" =~ ^md-${version//./\.}-((macos|linux|windows)-[a-z0-9_]+)\.(dmg|appimage|deb|rpm|msi|app\.tar\.gz)(\.sig)?$ ]]; then
-    # Preserve original casing for .AppImage extension
-    case "$lower" in
-      *.appimage|*.appimage.sig)
-        if [[ "$base" == *".AppImage"* ]]; then
-          printf '%s\n' "$base"
-          return 0
-        fi
-        ;;
-      *)
-        printf '%s\n' "$base"
-        return 0
-        ;;
-    esac
+  # Already canonical? (match case-insensitively; emit lowercase tenling-…)
+  if [[ "$lower" =~ ^tenling-${version//./\.}-((macos|linux|windows)-[a-z0-9_]+)\.(dmg|appimage|deb|rpm|msi|app\.tar\.gz)(\.sig)?$ ]]; then
+    # Preserve .AppImage casing when the original used it
+    if [[ "$lower" == *.appimage || "$lower" == *.appimage.sig ]]; then
+      local canon_stem="${lower%.sig}"
+      canon_stem="${canon_stem%.appimage}"
+      if [[ "$base" == *.sig ]]; then
+        printf '%s.AppImage.sig\n' "$canon_stem"
+      else
+        printf '%s.AppImage\n' "$canon_stem"
+      fi
+      return 0
+    fi
+    printf '%s\n' "$lower"
+    return 0
   fi
 
-  local sig="" stem="$base"
-  if [[ "$base" == *.sig ]]; then
+  stem="$lower"
+  if [[ "$stem" == *.sig ]]; then
     sig=".sig"
-    stem="${base%.sig}"
+    stem="${stem%.sig}"
   fi
 
   local os="" arch="" ext=""
+  # Accept tenling / TenLing (via lower)
+  local prefix_re='tenling'
 
-  # macOS DMG: md_0.2.0_universal.dmg  |  md_0.2.0_aarch64.dmg  |  md_0.2.0_x64.dmg
-  if [[ "$stem" =~ ^md[_-]${version//./\.}[_-](universal|aarch64|x64|x86_64)\.dmg$ ]]; then
+  # macOS DMG: TenLing_0.3.0_universal.dmg | tenling_0.3.0_x64.dmg | md_…
+  if [[ "$stem" =~ ^${prefix_re}[_-]${version//./\.}[_-](universal|aarch64|x64|x86_64)\.dmg$ ]]; then
     os="macos"
     arch="${BASH_REMATCH[1]}"
     [[ "$arch" == "x86_64" ]] && arch="x64"
     ext="dmg"
 
-  # macOS updater tarball: md_0.2.0_universal.app.tar.gz
-  elif [[ "$stem" =~ ^md[_-]${version//./\.}[_-](universal|aarch64|x64|x86_64)\.app\.tar\.gz$ ]]; then
+  # macOS updater tarball
+  elif [[ "$stem" =~ ^${prefix_re}[_-]${version//./\.}[_-](universal|aarch64|x64|x86_64)\.app\.tar\.gz$ ]]; then
     os="macos"
     arch="${BASH_REMATCH[1]}"
     [[ "$arch" == "x86_64" ]] && arch="x64"
     ext="app.tar.gz"
 
-  # AppImage: md_0.2.0_amd64.AppImage
-  elif [[ "$stem" =~ ^md[_-]${version//./\.}[_-](amd64|x86_64|x64|aarch64|arm64)\.[Aa]pp[Ii]mage$ ]]; then
+  # AppImage
+  elif [[ "$stem" =~ ^${prefix_re}[_-]${version//./\.}[_-](amd64|x86_64|x64|aarch64|arm64)\.appimage$ ]]; then
     os="linux"
     arch="${BASH_REMATCH[1]}"
     case "$arch" in
@@ -90,8 +92,8 @@ canonical_name() {
     esac
     ext="AppImage"
 
-  # deb: md_0.2.0_amd64.deb
-  elif [[ "$stem" =~ ^md[_-]${version//./\.}[_-](amd64|x86_64|x64|aarch64|arm64)\.deb$ ]]; then
+  # deb
+  elif [[ "$stem" =~ ^${prefix_re}[_-]${version//./\.}[_-](amd64|x86_64|x64|aarch64|arm64)\.deb$ ]]; then
     os="linux"
     arch="${BASH_REMATCH[1]}"
     case "$arch" in
@@ -100,8 +102,8 @@ canonical_name() {
     esac
     ext="deb"
 
-  # rpm: md-0.2.0-1.x86_64.rpm  (release number may vary)
-  elif [[ "$stem" =~ ^md-${version//./\.}-[0-9]+\.(x86_64|aarch64|arm64)\.rpm$ ]]; then
+  # rpm: tenling-0.3.0-1.x86_64.rpm
+  elif [[ "$stem" =~ ^${prefix_re}-${version//./\.}-[0-9]+\.(x86_64|aarch64|arm64)\.rpm$ ]]; then
     os="linux"
     arch="${BASH_REMATCH[1]}"
     case "$arch" in
@@ -110,8 +112,8 @@ canonical_name() {
     esac
     ext="rpm"
 
-  # MSI: md_0.2.0_x64_en-US.msi  |  md_0.2.0_x64.msi
-  elif [[ "$stem" =~ ^md[_-]${version//./\.}[_-](x64|x86_64|arm64|aarch64)([_-][A-Za-z]{2}[-_][A-Za-z]{2})?\.msi$ ]]; then
+  # MSI
+  elif [[ "$stem" =~ ^${prefix_re}[_-]${version//./\.}[_-](x64|x86_64|arm64|aarch64)([_-][a-z]{2}[-_][a-z]{2})?\.msi$ ]]; then
     os="windows"
     arch="${BASH_REMATCH[1]}"
     case "$arch" in
@@ -124,7 +126,7 @@ canonical_name() {
     return 1
   fi
 
-  printf 'md-%s-%s-%s.%s%s\n' "$version" "$os" "$arch" "$ext" "$sig"
+  printf 'tenling-%s-%s-%s.%s%s\n' "$version" "$os" "$arch" "$ext" "$sig"
 }
 
 # Rename every recognized installer in dir. Writes mapping to stdout as: old<TAB>new
@@ -208,12 +210,12 @@ rewrite_latest_json() {
   local base_url="https://github.com/${repo}/releases/download/${tag}"
 
   # Prefer AppImage for generic linux-x86_64 (OTA installs replace the binary).
-  local linux_x64_appimage="md-${version}-linux-x64.AppImage"
-  local linux_x64_rpm="md-${version}-linux-x64.rpm"
-  local linux_x64_deb="md-${version}-linux-x64.deb"
-  local win_x64_msi="md-${version}-windows-x64.msi"
-  local mac_uni_app="md-${version}-macos-universal.app.tar.gz"
-  local mac_uni_dmg="md-${version}-macos-universal.dmg"
+  local linux_x64_appimage="tenling-${version}-linux-x64.AppImage"
+  local linux_x64_rpm="tenling-${version}-linux-x64.rpm"
+  local linux_x64_deb="tenling-${version}-linux-x64.deb"
+  local win_x64_msi="tenling-${version}-windows-x64.msi"
+  local mac_uni_app="tenling-${version}-macos-universal.app.tar.gz"
+  local mac_uni_dmg="tenling-${version}-macos-universal.dmg"
 
   python3 - "$json_path" "$base_url" "$assets_dir" \
     "$linux_x64_appimage" "$linux_x64_rpm" "$linux_x64_deb" \
@@ -268,7 +270,7 @@ publish_release() {
   [[ "$version" != "$tag" ]] || version="$tag"
 
   local work
-  work="$(mktemp -d "${TMPDIR:-/tmp}/md-normalize.XXXXXX")"
+  work="$(mktemp -d "${TMPDIR:-/tmp}/tenling-normalize.XXXXXX")"
   # shellcheck disable=SC2064
   trap "rm -rf '$work'" EXIT
 
@@ -280,7 +282,7 @@ publish_release() {
   fi
 
   log "normalize filenames for version $version"
-  rename_dir "$version" "$work" >/tmp/md-rename-map.txt || true
+  rename_dir "$version" "$work" >/tmp/tenling-rename-map.txt || true
   if [[ -f "$work/latest.json" ]]; then
     rewrite_latest_json "$version" "$tag" "$repo" "$work/latest.json" "$work"
   fi
@@ -291,7 +293,7 @@ publish_release() {
   while IFS= read -r -d '' f; do
     base="$(basename "$f")"
     case "$base" in
-      md-"$version"-*) upload+=("$f") ;;
+      tenling-"$version"-*) upload+=("$f") ;;
       latest.json) upload+=("$f") ;;
     esac
   done < <(find "$work" -maxdepth 1 -type f -print0)
@@ -306,10 +308,10 @@ publish_release() {
   fi
 
   # Delete legacy-named installer assets still on the release.
-  # Canonical: md-{version}-{macos|linux|windows}-{arch}.{ext}[.sig]
+  # Canonical: tenling-{version}-{macos|linux|windows}-{arch}.{ext}[.sig]
   log "prune legacy-named assets"
   local name
-  local canon_re="^md-${version//./\.}-(macos|linux|windows)-[a-z0-9_]+\\.(dmg|AppImage|deb|rpm|msi|app\\.tar\\.gz)(\\.sig)?$"
+  local canon_re="^tenling-${version//./\.}-(macos|linux|windows)-[a-z0-9_]+\\.(dmg|AppImage|deb|rpm|msi|app\\.tar\\.gz)(\\.sig)?$"
   while IFS= read -r name; do
     [[ -n "$name" ]] || continue
     [[ "$name" == "latest.json" ]] && continue
@@ -326,7 +328,7 @@ publish_release() {
     fi
   done < <(gh api "repos/${repo}/releases/tags/${tag}" --jq '.assets[].name')
 
-  log "done — assets on $tag now use md-${version}-{os}-{arch}.{ext}"
+  log "done — assets on $tag now use tenling-${version}-{os}-{arch}.{ext}"
 }
 
 usage() {

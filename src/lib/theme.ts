@@ -1,6 +1,6 @@
 import type { ThemeMode } from '../stores/documentStore';
 
-const STORAGE_KEY = 'md-theme';
+const STORAGE_KEY = 'tenling-theme';
 
 export function loadThemePreference(): ThemeMode {
   const v = localStorage.getItem(STORAGE_KEY);

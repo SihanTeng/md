@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Chocolatey package for TenLing.
+  Version + checksums are rewritten by scripts/update-chocolatey-package.sh on release.
+-->
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>tenling</id>
+    <version>0.3.1</version>
+    <title>TenLing</title>
+    <authors>SihanTeng</authors>
+    <owners>SihanTeng</owners>
+    <projectUrl>https://github.com/SihanTeng/tenling</projectUrl>
+    <projectSourceUrl>https://github.com/SihanTeng/tenling</projectSourceUrl>
+    <packageSourceUrl>https://github.com/SihanTeng/tenling/tree/main/packaging/chocolatey/tenling</packageSourceUrl>
+    <docsUrl>https://github.com/SihanTeng/tenling#readme</docsUrl>
+    <bugTrackerUrl>https://github.com/SihanTeng/tenling/issues</bugTrackerUrl>
+    <licenseUrl>https://github.com/SihanTeng/tenling</licenseUrl>
+    <iconUrl>https://raw.githubusercontent.com/SihanTeng/tenling/main/public/icon.png</iconUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <summary>Calm, cross-platform Markdown viewer and editor</summary>
+    <description>
+TenLing is a calm desktop Markdown viewer and editor for Windows, macOS, and Linux.
+
+* Visual (WYSIWYG) editing — headings, lists, tasks, tables, images, links
+* Presentation mode from document headings
+* Portable .md files on disk — no vault lock-in
+* Light and dark themes
+* In-app updates
+
+This package installs the official MSI from GitHub Releases.
+    </description>
+    <releaseNotes>https://github.com/SihanTeng/tenling/releases</releaseNotes>
+    <tags>markdown editor wysiwyg notes productivity desktop tenling admin</tags>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "md",
+      "name": "tenling",
       "dependencies": {
         "@remotion/player": "^4.0.496",
         "@tauri-apps/api": "^2",

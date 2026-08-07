@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Rewrite packaging/copr/md.spec Version (and changelog bump) for a release.
+# Rewrite packaging/copr/tenling.spec Version (and changelog bump) for a release.
 #
 # Usage:
 #   ./scripts/update-copr-spec.sh <version> [spec-file]
@@ -8,7 +8,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERSION="${1:?usage: update-copr-spec.sh <version> [spec-file]}"
-SPEC="${2:-$ROOT/packaging/copr/md.spec}"
+SPEC="${2:-$ROOT/packaging/copr/tenling.spec}"
 
 [[ -f "$SPEC" ]] || { echo "missing $SPEC" >&2; exit 1; }
 
@@ -17,7 +17,7 @@ sed -i -E "s/^Version:[[:space:]]+.*/Version:        ${VERSION}/" "$SPEC"
 # Prepend a changelog entry if this version is not already the top entry.
 if ! head -40 "$SPEC" | grep -q -- "- ${VERSION}-1"; then
   DATE="$(date -u '+%a %b %d %Y')"
-  ENTRY="* ${DATE} md contributors <noreply@users.noreply.github.com> - ${VERSION}-1
+  ENTRY="* ${DATE} TenLing contributors <noreply@users.noreply.github.com> - ${VERSION}-1
 - Release ${VERSION} (AppImage from GitHub Releases)
 "
   # Insert after %changelog

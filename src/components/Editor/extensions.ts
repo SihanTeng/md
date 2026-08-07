@@ -32,7 +32,7 @@ export function createExtensions() {
       link: {
         openOnClick: false,
         HTMLAttributes: {
-          class: 'md-link',
+          class: 'tl-link',
         },
       },
     }),

@@ -1,6 +1,6 @@
-md is open source software. See the project repository for terms:
+TenLing is open source software. See the project repository for terms:
 
-  https://github.com/SihanTeng/md
+  https://github.com/SihanTeng/tenling
 
 Third-party dependencies (Tauri, WebView2, etc.) remain under their respective
 licenses as distributed by the MSI installer.

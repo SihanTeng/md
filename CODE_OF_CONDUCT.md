@@ -60,7 +60,7 @@ representative at an online or offline event.
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported to the community leaders responsible for enforcement by opening a
-[private security advisory](https://github.com/SihanTeng/md/security/advisories/new)
+[private security advisory](https://github.com/SihanTeng/tenling/security/advisories/new)
 or by contacting the maintainers through
 [GitHub](https://github.com/SihanTeng).
 

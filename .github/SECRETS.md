@@ -36,18 +36,18 @@ Rules:
 
 | Name | Kind | Job | Value |
 | --- | --- | --- | --- |
-| `TAURI_SIGNING_PRIVATE_KEY` | Secret | `build` | Contents of `~/.tauri/md.key` (`bun run tauri -- signer generate`) |
+| `TAURI_SIGNING_PRIVATE_KEY` | Secret | `build` | Contents of `~/.tauri/tenling.key` (`bun run tauri -- signer generate`) |
 | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Secret | `build` | Key password, or empty if none |
 
 ### Distribution
 
 | Name | Kind | Job | Value |
 | --- | --- | --- | --- |
-| `DIST_HOMEBREW_TOKEN` | Secret | `homebrew` | GitHub PAT with `contents:write` on [`SihanTeng/homebrew-md`](https://github.com/SihanTeng/homebrew-md). Optional — without it only the in-repo cask updates. |
+| `DIST_HOMEBREW_TOKEN` | Secret | `homebrew` | GitHub PAT with `contents:write` on [`SihanTeng/homebrew-tenling`](https://github.com/SihanTeng/homebrew-tenling). Optional — without it only the in-repo cask updates. |
 | `DIST_AUR_SSH_KEY` | Secret | `aur` | Private SSH key registered on [aur.archlinux.org](https://aur.archlinux.org) → My Account → SSH Public Key. See `packaging/aur/README.md`. |
 | `DIST_CHOCOLATEY_API_KEY` | Secret | `chocolatey` | API key from [community.chocolatey.org/account](https://community.chocolatey.org/account). |
 | `DIST_COPR_CONFIG` | Secret | `copr` | Full `[copr-cli]` config from [copr.fedorainfracloud.org/api](https://copr.fedorainfracloud.org/api/). Expires ~180 days. |
-| `DIST_COPR_PROJECT` | **Variable** | `copr` | Project path, e.g. `YourFedoraUsername/md`. |
+| `DIST_COPR_PROJECT` | **Variable** | `copr` | Project path, e.g. `YourFedoraUsername/tenling`. |
 
 ### Automatic (do not create)
 
@@ -73,7 +73,7 @@ DIST_COPR_CONFIG             # optional
 **Variables**
 
 ```text
-DIST_COPR_PROJECT=YourFedoraUsername/md
+DIST_COPR_PROJECT=YourFedoraUsername/tenling
 ```
 
 Channel how-tos: [`docs/distribution.md`](../docs/distribution.md).

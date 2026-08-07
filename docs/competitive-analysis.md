@@ -1,9 +1,9 @@
-# Competitive analysis: mature Markdown apps vs `md`
+# Competitive analysis: mature Markdown apps vs `TenLing`
 
-Point-in-time analysis (2026-07) comparing `md` against mature open-source and
+Point-in-time analysis (2026-07) comparing TenLing against mature open-source and
 closed-source Markdown applications, with a prioritized roadmap.
 
-## Where `md` sits in the landscape
+## Where `TenLing` sits in the landscape
 
 Markdown apps split into three categories:
 
@@ -23,7 +23,7 @@ nobody else combines the two lanes.
 
 ## Feature comparison
 
-| Capability | md | Typora | MarkText | ghostwriter | iA Writer | Marp/Deckset |
+| Capability | TenLing | Typora | MarkText | ghostwriter | iA Writer | Marp/Deckset |
 |---|---|---|---|---|---|---|
 | Live-rendered editing (Typora-style) | ✅ | ✅ | ✅ | split preview | partial | — |
 | Source-code mode | ❌ | ✅ | ✅ | ✅ (source-first) | ✅ | ✅ |
@@ -48,7 +48,7 @@ marp-team discussion #68, and 2025–2026 editor roundups (docsio, TechTarget).
 
 ## Data-integrity issues found (fixed before any feature work)
 
-The audit of the marked → TipTap → turndown pipeline found cases where `md`
+The audit of the marked → TipTap → turndown pipeline found cases where `TenLing`
 silently destroyed user content:
 
 - **Strikethrough and underline deleted on save** — both were creatable in the
@@ -88,7 +88,7 @@ and outranked all feature work.
   visual editor can't represent (footnotes, raw HTML); turns "lossy" into
   "editable".
 - **Open-with integration**: `bundle.fileAssociations`, drag-and-drop onto the
-  window, CLI argv opening. Makes `md` a real default-handler citizen.
+  window, CLI argv opening. Makes `TenLing` a real default-handler citizen.
 - **Table editing UI** — add/remove rows/cols, alignment. Typora's most-
   praised feature; the schema already supports it, only UI is missing.
 

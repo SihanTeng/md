@@ -94,10 +94,10 @@ function escapeHtml(text: string): string {
 /** Swap editor-internal comment placeholders back for real HTML comments. */
 export function restoreComments(bodyHtml: string): string {
   return bodyHtml
-    .replace(/<div data-md-comment="([^"]*)"[^>]*>[^<]*<\/div>/g, (_m, b64: string) =>
+    .replace(/<div data-tl-comment="([^"]*)"[^>]*>[^<]*<\/div>/g, (_m, b64: string) =>
       decodeComment(b64),
     )
-    .replace(/<span data-md-comment="([^"]*)"[^>]*>[^<]*<\/span>/g, (_m, b64: string) =>
+    .replace(/<span data-tl-comment="([^"]*)"[^>]*>[^<]*<\/span>/g, (_m, b64: string) =>
       decodeComment(b64),
     );
 }
@@ -108,7 +108,7 @@ export function buildExportHtmlDocument(title: string, bodyHtml: string): string
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="generator" content="md">
+<meta name="generator" content="TenLing">
 <title>${escapeHtml(title)}</title>
 <style>${EXPORT_CSS}</style>
 </head>

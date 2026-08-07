@@ -1,0 +1,21 @@
+pkgbase = tenling-bin
+	pkgdesc = TenLing — calm, cross-platform Markdown viewer and editor
+	pkgver = 0.3.1
+	pkgrel = 1
+	url = https://github.com/SihanTeng/tenling
+	arch = x86_64
+	license = LicenseRef-Unknown
+	depends = webkit2gtk-4.1
+	depends = gtk3
+	depends = libayatana-appindicator
+	optdepends = xdg-utils: open links and file paths
+	provides = tenling
+	conflicts = tenling
+	options = !strip
+	options = !debug
+	source = tenling-0.3.1-linux-x64.AppImage::https://github.com/SihanTeng/tenling/releases/download/v0.3.1/tenling-0.3.1-linux-x64.AppImage
+	source = tenling.desktop
+	sha256sums = SKIP
+	sha256sums = SKIP
+
+pkgname = tenling-bin

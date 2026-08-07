@@ -1,4 +1,4 @@
-# Welcome to md
+# Welcome to TenLing
 
 A calm, macOS-inspired markdown editor.
 

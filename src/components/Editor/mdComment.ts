@@ -3,7 +3,7 @@ import { decodeComment, encodeComment } from '../../lib/markdown/comments';
 
 /**
  * Editor-side half of HTML comment preservation (see lib/markdown/comments).
- * Placeholder `<div/span data-md-comment>` elements parse into atom nodes;
+ * Placeholder `<div/span data-tl-comment>` elements parse into atom nodes;
  * node views render the comment as a muted chip while renderHTML re-emits
  * the placeholder form so the turndown rule in io.ts can restore the exact
  * `<!-- ... -->` text on save.
@@ -13,9 +13,9 @@ const commentAttribute = {
   comment: {
     default: '',
     parseHTML: (element: HTMLElement) =>
-      decodeComment(element.getAttribute('data-md-comment') ?? ''),
+      decodeComment(element.getAttribute('data-tl-comment') ?? ''),
     renderHTML: (attributes: Record<string, unknown>) => ({
-      'data-md-comment': encodeComment(String(attributes.comment ?? '')),
+      'data-tl-comment': encodeComment(String(attributes.comment ?? '')),
     }),
   },
 };
@@ -40,17 +40,17 @@ export const MdCommentBlock = Node.create({
   },
 
   parseHTML() {
-    return [{ tag: 'div[data-md-comment]' }];
+    return [{ tag: 'div[data-tl-comment]' }];
   },
 
   renderHTML({ HTMLAttributes }) {
     // The zero-width space payload keeps turndown's blank rule from
     // deleting the element before our rule can restore the comment
-    return ['div', mergeAttributes(HTMLAttributes, { class: 'md-comment-block' }), '\u200b'];
+    return ['div', mergeAttributes(HTMLAttributes, { class: 'tl-comment-block' }), '\u200b'];
   },
 
   addNodeView() {
-    return commentChip('div', 'md-comment md-comment-block');
+    return commentChip('div', 'tl-comment tl-comment-block');
   },
 });
 
@@ -65,14 +65,14 @@ export const MdCommentInline = Node.create({
   },
 
   parseHTML() {
-    return [{ tag: 'span[data-md-comment]' }];
+    return [{ tag: 'span[data-tl-comment]' }];
   },
 
   renderHTML({ HTMLAttributes }) {
-    return ['span', mergeAttributes(HTMLAttributes, { class: 'md-comment-inline' }), '\u200b'];
+    return ['span', mergeAttributes(HTMLAttributes, { class: 'tl-comment-inline' }), '\u200b'];
   },
 
   addNodeView() {
-    return commentChip('span', 'md-comment md-comment-inline');
+    return commentChip('span', 'tl-comment tl-comment-inline');
   },
 });

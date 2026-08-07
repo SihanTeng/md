@@ -101,7 +101,8 @@ export const useDocumentStore = create<DocumentState>((set) => ({
   sidebarOpen: true,
   sidebarMode: 'outline',
   workspace: null,
-  autoSave: typeof window !== 'undefined' && window.localStorage.getItem('md-autosave') !== '0',
+  autoSave:
+    typeof window !== 'undefined' && window.localStorage.getItem('tenling-autosave') !== '0',
   error: null,
   isOpening: false,
   isSaving: false,
@@ -124,7 +125,7 @@ export const useDocumentStore = create<DocumentState>((set) => ({
   setSidebarMode: (sidebarMode) => set({ sidebarMode }),
   setWorkspace: (workspace) => set({ workspace }),
   setAutoSave: (autoSave) => {
-    window.localStorage.setItem('md-autosave', autoSave ? '1' : '0');
+    window.localStorage.setItem('tenling-autosave', autoSave ? '1' : '0');
     set({ autoSave });
   },
   setError: (error) => set({ error }),

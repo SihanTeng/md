@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build an SRPM for md and optionally submit it to Fedora COPR.
+# Build an SRPM for TenLing and optionally submit it to Fedora COPR.
 #
 # Usage:
 #   ./scripts/publish-copr.sh <version> <appimage-path> [--srpm-only]
@@ -7,7 +7,7 @@
 #
 # Env:
 #   DIST_COPR_CONFIG  — full contents of ~/.config/copr (see .github/SECRETS.md)
-#   DIST_COPR_PROJECT — e.g. YourFedoraUser/md (or pass --project)
+#   DIST_COPR_PROJECT — e.g. YourFedoraUser/tenling (or pass --project)
 
 set -euo pipefail
 
@@ -36,16 +36,16 @@ command -v rpmbuild >/dev/null 2>&1 || {
 
 "$ROOT/scripts/update-copr-spec.sh" "$VERSION"
 
-SPEC="$ROOT/packaging/copr/md.spec"
-DESKTOP="$ROOT/packaging/copr/md.desktop"
-WORKDIR="${TMPDIR:-/tmp}/md-copr-$$"
+SPEC="$ROOT/packaging/copr/tenling.spec"
+DESKTOP="$ROOT/packaging/copr/tenling.desktop"
+WORKDIR="${TMPDIR:-/tmp}/tenling-copr-$$"
 mkdir -p "$WORKDIR"/{SOURCES,SPECS,SRPMS}
 # shellcheck disable=SC2064
 trap 'rm -rf "$WORKDIR"' EXIT
 
-cp -f "$APPIMAGE" "$WORKDIR/SOURCES/md-${VERSION}-linux-x64.AppImage"
-cp -f "$DESKTOP" "$WORKDIR/SOURCES/md.desktop"
-cp -f "$SPEC" "$WORKDIR/SPECS/md.spec"
+cp -f "$APPIMAGE" "$WORKDIR/SOURCES/tenling-${VERSION}-linux-x64.AppImage"
+cp -f "$DESKTOP" "$WORKDIR/SOURCES/tenling.desktop"
+cp -f "$SPEC" "$WORKDIR/SPECS/tenling.spec"
 
 RPMSRC="$WORKDIR"
 rpmbuild \
@@ -55,13 +55,13 @@ rpmbuild \
   --define "_srcrpmdir $RPMSRC/SRPMS" \
   --define "_rpmdir $RPMSRC/RPMS" \
   --define "_builddir $RPMSRC/BUILD" \
-  -bs "$RPMSRC/SPECS/md.spec"
+  -bs "$RPMSRC/SPECS/tenling.spec"
 
 SRPM="$(find "$RPMSRC/SRPMS" -name '*.src.rpm' | head -1)"
 [[ -n "$SRPM" && -f "$SRPM" ]] || { echo "SRPM not produced" >&2; exit 1; }
 echo "Built SRPM: $SRPM"
 
-OUT_SRPM="$ROOT/packaging/copr/md-${VERSION}-1.src.rpm"
+OUT_SRPM="$ROOT/packaging/copr/tenling-${VERSION}-1.src.rpm"
 cp -f "$SRPM" "$OUT_SRPM"
 echo "Copied to $OUT_SRPM"
 

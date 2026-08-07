@@ -29,7 +29,7 @@ function markSyntax(mark: Mark): { open: string; close: string } | null {
 
 function markerEl(text: string): HTMLElement {
   const span = document.createElement('span');
-  span.className = 'md-syntax';
+  span.className = 'tl-syntax';
   span.textContent = text;
   return span;
 }

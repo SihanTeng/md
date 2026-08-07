@@ -20,8 +20,8 @@ describe('buildExportHtmlDocument', () => {
 describe('restoreComments', () => {
   it('turns comment placeholders back into real HTML comments', () => {
     const b64 = encodeComment('<!-- keep me -->');
-    expect(restoreComments(`<div data-md-comment="${b64}">​</div>`)).toBe('<!-- keep me -->');
-    expect(restoreComments(`<span data-md-comment="${b64}" class="x">​</span>`)).toBe(
+    expect(restoreComments(`<div data-tl-comment="${b64}">​</div>`)).toBe('<!-- keep me -->');
+    expect(restoreComments(`<span data-tl-comment="${b64}" class="x">​</span>`)).toBe(
       '<!-- keep me -->',
     );
   });
@@ -30,6 +30,6 @@ describe('restoreComments', () => {
     const bodyHtml = markdownToHtml('text\n\n<!-- annotation -->\n');
     const doc = buildExportHtmlDocument('t', bodyHtml);
     expect(doc).toContain('<!-- annotation -->');
-    expect(doc).not.toContain('data-md-comment');
+    expect(doc).not.toContain('data-tl-comment');
   });
 });

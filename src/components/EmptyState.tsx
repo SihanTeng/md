@@ -22,7 +22,7 @@ export function EmptyState({ onNew, onOpen, onOpenFolder }: Props) {
       <div className="h-[160px] w-[280px] overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-surface)] shadow-[var(--shadow-popover)]">
         {reduced ? (
           <div className="flex h-full items-center justify-center text-[15px] font-medium text-[var(--color-ink)]">
-            md
+            TenLing
           </div>
         ) : (
           <Suspense

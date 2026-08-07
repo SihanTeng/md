@@ -1,4 +1,4 @@
-# Distribution channels for md
+# Distribution channels for TenLing
 
 Package managers and where each one lives. Prefer the **no-account** paths
 first; account-backed channels need secrets listed in the **canonical registry**:
@@ -9,10 +9,10 @@ This doc covers *how* each channel works. Secret **names** live only in
 `.github/SECRETS.md`.
 
 Release installers always land on
-[GitHub Releases](https://github.com/SihanTeng/md/releases) as:
+[GitHub Releases](https://github.com/SihanTeng/tenling/releases) as:
 
 ```text
-md-{version}-{os}-{arch}.{ext}
+tenling-{version}-{os}-{arch}.{ext}
 ```
 
 ---
@@ -23,24 +23,24 @@ md-{version}-{os}-{arch}.{ext}
 
 | | |
 | --- | --- |
-| Tap repo | [`SihanTeng/homebrew-md`](https://github.com/SihanTeng/homebrew-md) |
-| Template | `Casks/md.rb` (this repo) |
+| Tap repo | [`SihanTeng/homebrew-tenling`](https://github.com/SihanTeng/homebrew-tenling) |
+| Template | `Casks/tenling.rb` (this repo) |
 | CI | `homebrew` job in `.github/workflows/release.yml` |
 
 **Users:**
 
 ```bash
-brew tap SihanTeng/md
-brew install --cask md
+brew tap SihanTeng/tenling
+brew install --cask tenling
 ```
 
 **CI secret (optional but recommended):** `DIST_HOMEBREW_TOKEN` — see
 [`.github/SECRETS.md`](../.github/SECRETS.md). Without it, the job skips remote
-tap publish; the in-repo `Casks/md.rb` is still updated on release so this works:
+tap publish; the in-repo `Casks/tenling.rb` is still updated on release so this works:
 
 ```bash
-brew tap SihanTeng/md https://github.com/SihanTeng/md
-brew install --cask md
+brew tap SihanTeng/tenling https://github.com/SihanTeng/tenling
+brew install --cask tenling
 ```
 
 ---
@@ -50,16 +50,16 @@ brew install --cask md
 | | |
 | --- | --- |
 | Host | GitHub Pages on this repo (`gh-pages` branch) |
-| URL | https://sihanteng.github.io/md/apt/ |
-| Source package | `md-{version}-linux-x64.deb` from the release |
+| URL | https://sihanteng.github.io/tenling/apt/ |
+| Source package | `tenling-{version}-linux-x64.deb` from the release |
 | Builder | `scripts/publish-linux-repos.sh` |
 
 **Users:**
 
 ```bash
-echo "deb [trusted=yes] https://sihanteng.github.io/md/apt ./" | sudo tee /etc/apt/sources.list.d/md.list
+echo "deb [trusted=yes] https://sihanteng.github.io/tenling/apt ./" | sudo tee /etc/apt/sources.list.d/tenling.list
 sudo apt update
-sudo apt install md
+sudo apt install tenling
 ```
 
 `[trusted=yes]` is required because the static repo is **not** GPG-signed yet
@@ -72,21 +72,21 @@ sudo apt install md
 | | |
 | --- | --- |
 | Host | Same Pages site under `/rpm/` |
-| URL | https://sihanteng.github.io/md/rpm/ |
-| Source package | `md-{version}-linux-x64.rpm` |
+| URL | https://sihanteng.github.io/tenling/rpm/ |
+| Source package | `tenling-{version}-linux-x64.rpm` |
 | Builder | `scripts/publish-linux-repos.sh` + `createrepo_c` |
 
 **Users:**
 
 ```bash
-sudo tee /etc/yum.repos.d/md.repo <<'EOF'
-[md]
-name=md
-baseurl=https://sihanteng.github.io/md/rpm
+sudo tee /etc/yum.repos.d/tenling.repo <<'EOF'
+[tenling]
+name=TenLing
+baseurl=https://sihanteng.github.io/tenling/rpm
 enabled=1
 gpgcheck=0
 EOF
-sudo dnf install md
+sudo dnf install tenling
 ```
 
 No Fedora/COPR account required.
@@ -97,8 +97,8 @@ No Fedora/COPR account required.
 
 | | |
 | --- | --- |
-| Package | `md-bin` (prebuilt AppImage) |
-| Sources | `packaging/aur/md-bin/` |
+| Package | `tenling-bin` (prebuilt AppImage) |
+| Sources | `packaging/aur/tenling-bin/` |
 | CI | `aur` job — runs only when `DIST_AUR_SSH_KEY` is set |
 
 **One-time setup (you do this in a browser / local machine):**
@@ -106,7 +106,7 @@ No Fedora/COPR account required.
 1. Create an SSH key used only for AUR (do not reuse your GitHub key):
 
    ```bash
-   ssh-keygen -t ed25519 -f ~/.ssh/aur -C "md-aur"
+   ssh-keygen -t ed25519 -f ~/.ssh/aur -C "tenling-aur"
    ```
 
 2. Open **https://aur.archlinux.org** → register / log in →
@@ -115,8 +115,8 @@ No Fedora/COPR account required.
 3. Create the empty AUR package once:
 
    ```bash
-   git clone ssh://aur@aur.archlinux.org/md-bin.git
-   # copy packaging/aur/md-bin/* into it, commit, push
+   git clone ssh://aur@aur.archlinux.org/tenling-bin.git
+   # copy packaging/aur/tenling-bin/* into it, commit, push
    ```
 
 4. Add GitHub secret **`DIST_AUR_SSH_KEY`** = contents of `~/.ssh/aur`
@@ -125,8 +125,8 @@ No Fedora/COPR account required.
 **Users (Arch):**
 
 ```bash
-yay -S md-bin
-# or: paru -S md-bin
+yay -S tenling-bin
+# or: paru -S tenling-bin
 ```
 
 ---
@@ -135,11 +135,11 @@ yay -S md-bin
 
 | Platform | Command |
 | --- | --- |
-| macOS / Linux | `curl -fsSL https://raw.githubusercontent.com/SihanTeng/md/main/install.sh \| bash` |
-| Windows | `irm https://raw.githubusercontent.com/SihanTeng/md/main/install.ps1 \| iex` |
+| macOS / Linux | `curl -fsSL https://raw.githubusercontent.com/SihanTeng/tenling/main/install.sh \| bash` |
+| Windows | `irm https://raw.githubusercontent.com/SihanTeng/tenling/main/install.ps1 \| iex` |
 
 Scripts live at the repo root (`install.sh`, `install.ps1`). They resolve the
-latest release asset for the host OS (with legacy filename fallbacks).
+latest release asset for the host OS (`tenling-{version}-…` names).
 
 ### 6. Direct download + in-app updates
 
@@ -154,8 +154,8 @@ Always available: GitHub Releases assets + Tauri signed OTA (`latest.json` +
 
 | | |
 | --- | --- |
-| Package id | `md` |
-| Sources | `packaging/chocolatey/md/` |
+| Package id | `tenling` |
+| Sources | `packaging/chocolatey/tenling/` |
 | CI | `chocolatey` job (windows-latest) |
 | Secret | **`DIST_CHOCOLATEY_API_KEY`** ([registry](../.github/SECRETS.md)) |
 
@@ -164,7 +164,7 @@ Always available: GitHub Releases assets + Tauri signed OTA (`latest.json` +
 1. Log in at [chocolatey.org](https://chocolatey.org/account) (you already registered).
 2. Open **Account → API Keys** (or https://community.chocolatey.org/account) and
    create a key with push permission for the community repository.
-3. In GitHub → `SihanTeng/md` → **Settings → Secrets and variables → Actions**,
+3. In GitHub → `SihanTeng/tenling` → **Settings → Secrets and variables → Actions**,
    add secret **`DIST_CHOCOLATEY_API_KEY`** = that key.
 4. First publish of a brand-new package id may need manual approval on the
    Chocolatey site (moderation). Later versions auto-push via CI.
@@ -172,13 +172,13 @@ Always available: GitHub Releases assets + Tauri signed OTA (`latest.json` +
 **Users:**
 
 ```powershell
-choco install md
+choco install tenling
 ```
 
 **Local pack (Windows with choco installed):**
 
 ```bash
-./scripts/publish-chocolatey.sh 0.2.0 path/to/md-0.2.0-windows-x64.msi --pack-only
+./scripts/publish-chocolatey.sh 0.2.0 path/to/tenling-0.2.0-windows-x64.msi --pack-only
 ```
 
 ---
@@ -187,20 +187,20 @@ choco install md
 
 | | |
 | --- | --- |
-| Spec | `packaging/copr/md.spec` (AppImage → `/usr/bin/md`) |
+| Spec | `packaging/copr/tenling.spec` (AppImage → `/usr/bin/tenling`) |
 | CI | `copr` job |
 | Secret / variable | **`DIST_COPR_CONFIG`**, **`DIST_COPR_PROJECT`** ([registry](../.github/SECRETS.md)) |
 
 **One-time setup:**
 
 1. Log in at [copr.fedorainfracloud.org](https://copr.fedorainfracloud.org).
-2. Create a project (e.g. name `md`) for the chroots you care about
+2. Create a project (e.g. name `tenling`) for the chroots you care about
    (at least `fedora-rawhide-x86_64` and current Fedora x86_64).
 3. Open **https://copr.fedorainfracloud.org/api/** → copy the full
    `[copr-cli]` config block.
 4. GitHub:
    - Secret **`DIST_COPR_CONFIG`** — entire config file contents
-   - Variable **`DIST_COPR_PROJECT`** — e.g. `YourFedoraUsername/md`
+   - Variable **`DIST_COPR_PROJECT`** — e.g. `YourFedoraUsername/tenling`
 
 Tokens expire about every **180 days** — regenerate at the API page and update
 `DIST_COPR_CONFIG` when builds start failing auth.
@@ -208,14 +208,14 @@ Tokens expire about every **180 days** — regenerate at the API page and update
 **Users:**
 
 ```bash
-sudo dnf copr enable YourFedoraUsername/md
-sudo dnf install md
+sudo dnf copr enable YourFedoraUsername/tenling
+sudo dnf install tenling
 ```
 
 **Local SRPM only:**
 
 ```bash
-./scripts/publish-copr.sh 0.2.0 path/to/md-0.2.0-linux-x64.AppImage --srpm-only
+./scripts/publish-copr.sh 0.2.0 path/to/tenling-0.2.0-linux-x64.AppImage --srpm-only
 ```
 
 ---
@@ -246,16 +246,16 @@ Do not invent new secret names here — update the registry first, then the work
 ./scripts/update-homebrew-cask.sh 0.2.0 <dmg-sha256>
 
 # Rewrite AUR PKGBUILD + .SRCINFO
-./scripts/update-aur-pkgbuild.sh 0.2.0 path/to/md-0.2.0-linux-x64.AppImage
+./scripts/update-aur-pkgbuild.sh 0.2.0 path/to/tenling-0.2.0-linux-x64.AppImage
 
 # Build static APT + RPM trees (for Pages)
 ./scripts/publish-linux-repos.sh 0.2.0 path/to/assets ./dist-repos
 
 # Chocolatey: rewrite + pack (+ push if DIST_CHOCOLATEY_API_KEY set)
-./scripts/publish-chocolatey.sh 0.2.0 path/to/md-0.2.0-windows-x64.msi
+./scripts/publish-chocolatey.sh 0.2.0 path/to/tenling-0.2.0-windows-x64.msi
 
 # COPR: rewrite + SRPM (+ submit if DIST_COPR_CONFIG + DIST_COPR_PROJECT set)
-./scripts/publish-copr.sh 0.2.0 path/to/md-0.2.0-linux-x64.AppImage
+./scripts/publish-copr.sh 0.2.0 path/to/tenling-0.2.0-linux-x64.AppImage
 ```
 
 

@@ -4,7 +4,7 @@ import type { TokenizerAndRendererExtension } from 'marked';
  * HTML comment preservation. Both the DOM parser and TipTap drop comment
  * *nodes*, so comments would vanish on load. These marked tokenizers run
  * before marked's built-in html tokenizer and turn `<!-- ... -->` into
- * placeholder *elements* (`<div/span data-md-comment="...">`) that survive
+ * placeholder *elements* (`<div/span data-tl-comment="...">`) that survive
  * the trip through the editor; turndown rules in io.ts restore the original
  * comment text on save.
  *
@@ -57,7 +57,7 @@ export const commentMarkedExtensions: TokenizerAndRendererExtension[] = [
       return { type: 'mdCommentBlock', raw: match[0], text: match[1] };
     },
     renderer(token) {
-      return `<div data-md-comment="${encodeComment(token.text)}">${PAYLOAD}</div>\n`;
+      return `<div data-tl-comment="${encodeComment(token.text)}">${PAYLOAD}</div>\n`;
     },
   },
   {
@@ -79,7 +79,7 @@ export const commentMarkedExtensions: TokenizerAndRendererExtension[] = [
       return token;
     },
     renderer(token) {
-      return `<p><span data-md-comment="${encodeComment(token.text)}">${PAYLOAD}</span>${this.parser.parseInline(token.tokens ?? [])}</p>\n`;
+      return `<p><span data-tl-comment="${encodeComment(token.text)}">${PAYLOAD}</span>${this.parser.parseInline(token.tokens ?? [])}</p>\n`;
     },
   },
   {
@@ -96,7 +96,7 @@ export const commentMarkedExtensions: TokenizerAndRendererExtension[] = [
       return { type: 'mdCommentInline', raw: match[0], text: match[0] };
     },
     renderer(token) {
-      return `<span data-md-comment="${encodeComment(token.text)}">${PAYLOAD}</span>`;
+      return `<span data-tl-comment="${encodeComment(token.text)}">${PAYLOAD}</span>`;
     },
   },
 ];

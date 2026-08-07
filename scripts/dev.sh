@@ -41,7 +41,7 @@ shutdown() {
 trap 'shutdown INT' INT
 trap 'shutdown TERM' TERM
 
-printf 'Starting md desktop app (tauri dev)… (Ctrl+C to stop)\n'
+printf 'Starting TenLing desktop app (tauri dev)… (Ctrl+C to stop)\n'
 
 # The Tauri CLI runs in-process inside Node (NAPI), so signals to this PID
 # reach the real CLI. It spawns Vite (beforeDevCommand) and cargo itself.

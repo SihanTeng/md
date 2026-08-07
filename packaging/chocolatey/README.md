@@ -1,12 +1,12 @@
-# Chocolatey package (`md`)
+# Chocolatey package (`tenling`)
 
 Installs the official Windows MSI from GitHub Releases.
 
 ## Layout
 
-```text
-md/
-  md.nuspec
+```
+packaging/chocolatey/tenling/
+  tenling.nuspec
   tools/
     chocolateyInstall.ps1
     chocolateyUninstall.ps1
@@ -14,15 +14,11 @@ md/
     LICENSE.txt
 ```
 
-## Secret
+## Release
 
-`DIST_CHOCOLATEY_API_KEY` — see [`.github/SECRETS.md`](../../.github/SECRETS.md).
-
-## Local
+`scripts/update-chocolatey-package.sh` rewrites version + MSI checksum;  
+`scripts/publish-chocolatey.sh` packs and pushes (needs `DIST_CHOCOLATEY_API_KEY`).
 
 ```bash
-./scripts/publish-chocolatey.sh 0.2.0 ./md-0.2.0-windows-x64.msi --pack-only
-
-export DIST_CHOCOLATEY_API_KEY=...
-./scripts/publish-chocolatey.sh 0.2.0 ./md-0.2.0-windows-x64.msi
+choco install tenling
 ```

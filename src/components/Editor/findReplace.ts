@@ -64,7 +64,7 @@ function buildState(doc: PMNode, query: string, caseSensitive: boolean, active: 
     doc,
     matches.map((m, i) =>
       Decoration.inline(m.from, m.to, {
-        class: i === activeIndex ? 'md-find-match md-find-match-active' : 'md-find-match',
+        class: i === activeIndex ? 'tl-find-match tl-find-match-active' : 'tl-find-match',
       }),
     ),
   );

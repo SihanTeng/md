@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Simple version bump script for md
+# Simple version bump script for TenLing
 #
 # Usage:
 #   bun run version               # normal bump (patch)

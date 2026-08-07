@@ -20,7 +20,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ dark = false }) => {
 
   const bg = dark ? '#1c1c1e' : '#f5f5f7';
   const ink = dark ? '#f5f5f7' : '#1d1d1f';
-  const accent = dark ? '#0a84ff' : '#007aff';
+  const accent = dark ? '#8b7cf8' : '#6258F5';
   const muted = dark ? '#8e8e93' : '#86868b';
 
   return (
@@ -56,7 +56,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ dark = false }) => {
             boxShadow: `0 8px 24px ${accent}44`,
           }}
         >
-          md
+          TL
         </div>
         <div style={{ color: ink, fontSize: 16, fontWeight: 600 }}>Ready when you are</div>
         <div style={{ color: muted, fontSize: 12, marginTop: 4 }}>⌘N new · ⌘O open</div>

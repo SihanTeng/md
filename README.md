@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/assets/logo.png" width="96" height="96" alt="md app icon">
+  <img src="docs/assets/logo.png" width="96" height="96" alt="TenLing app icon">
 </p>
 
-<h1 align="center">md</h1>
+<h1 align="center">TenLing</h1>
 
 <p align="center">
   <strong>Markdown, quietly.</strong><br>
@@ -11,10 +11,10 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/SihanTeng/md/releases/latest"><img src="https://img.shields.io/github/v/release/SihanTeng/md?style=flat-square&color=007aff" alt="Latest release"></a>
-  <a href="https://github.com/SihanTeng/md/releases/latest"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey?style=flat-square" alt="Platforms"></a>
+  <a href="https://github.com/SihanTeng/tenling/releases/latest"><img src="https://img.shields.io/github/v/release/SihanTeng/tenling?style=flat-square&color=007aff" alt="Latest release"></a>
+  <a href="https://github.com/SihanTeng/tenling/releases/latest"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey?style=flat-square" alt="Platforms"></a>
   <a href="CODE_OF_CONDUCT.md"><img src="https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa?style=flat-square" alt="Code of Conduct"></a>
-  <a href="https://github.com/SihanTeng/md/releases/latest"><img src="https://img.shields.io/github/downloads/SihanTeng/md/total?style=flat-square&color=6e6e73" alt="Downloads"></a>
+  <a href="https://github.com/SihanTeng/tenling/releases/latest"><img src="https://img.shields.io/github/downloads/SihanTeng/tenling/total?style=flat-square&color=6e6e73" alt="Downloads"></a>
 </p>
 
 <p align="center">
@@ -32,14 +32,14 @@
 <br>
 
 <p align="center">
-  <img src="docs/assets/editor.png" alt="md editor showing a welcome document with outline sidebar" width="920">
+  <img src="docs/assets/editor.png" alt="TenLing editor showing a welcome document with outline sidebar" width="920">
 </p>
 
-## Why md?
+## Why TenLing?
 
 Most Markdown tools force a choice: a heavy knowledge base, a split source/preview pane, or a paid single-purpose editor.
 
-**md** is for people who just want to open a file and write.
+**TenLing** is for people who just want to open a file and write.
 
 - **What you see is what you write** — format headings, lists, tasks, and tables without staring at syntax
 - **One file, two jobs** — the same document becomes slides when you present
@@ -98,35 +98,35 @@ Most Markdown tools force a choice: a heavy knowledge base, a split source/previ
 **macOS / Linux:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/SihanTeng/md/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/SihanTeng/tenling/main/install.sh | bash
 ```
 
 **Windows** (PowerShell):
 
 ```powershell
-irm https://raw.githubusercontent.com/SihanTeng/md/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/SihanTeng/tenling/main/install.ps1 | iex
 ```
 
-The scripts download the latest [GitHub Release](https://github.com/SihanTeng/md/releases/latest) for your platform (DMG → Applications, AppImage → `~/.local/bin/md`, MSI → Windows Installer). Pin a version with `MD_VERSION=v0.2.0`.
+The scripts download the latest [GitHub Release](https://github.com/SihanTeng/tenling/releases/latest) for your platform (DMG → Applications, AppImage → `~/.local/bin/tenling`, MSI → Windows Installer). Pin a version with `TENLING_VERSION=v0.3.0`.
 
 ### Manual download
 
 Download a package from the
-[**Releases**](https://github.com/SihanTeng/md/releases/latest) page.
+[**Releases**](https://github.com/SihanTeng/tenling/releases/latest) page.
 
 Installer files use a single naming scheme:
 
 ```text
-md-{version}-{os}-{arch}.{ext}
+tenling-{version}-{os}-{arch}.{ext}
 ```
 
 | File | Platform |
 | --- | --- |
-| `md-*-macos-universal.dmg` | macOS (Apple silicon + Intel) |
-| `md-*-linux-x64.AppImage` | Linux (portable) |
-| `md-*-linux-x64.deb` | Debian / Ubuntu |
-| `md-*-linux-x64.rpm` | Fedora / RHEL |
-| `md-*-windows-x64.msi` | Windows |
+| `tenling-*-macos-universal.dmg` | macOS (Apple silicon + Intel) |
+| `tenling-*-linux-x64.AppImage` | Linux (portable) |
+| `tenling-*-linux-x64.deb` | Debian / Ubuntu |
+| `tenling-*-linux-x64.rpm` | Fedora / RHEL |
+| `tenling-*-windows-x64.msi` | Windows |
 
 (Also on each release: tiny `.sig` files and `latest.json` for automatic updates — not installers.)
 
@@ -135,18 +135,18 @@ md-{version}-{os}-{arch}.{ext}
 **Homebrew** (recommended):
 
 ```bash
-brew tap SihanTeng/md
-brew install --cask md
+brew tap SihanTeng/tenling
+brew install --cask tenling
 ```
 
 If the tap is not yet mirrored, use this repo directly:
 
 ```bash
-brew tap SihanTeng/md https://github.com/SihanTeng/md
-brew install --cask md
+brew tap SihanTeng/tenling https://github.com/SihanTeng/tenling
+brew install --cask tenling
 ```
 
-**Or** download `md-*-macos-universal.dmg`, open it, and drag **md** into
+**Or** download `tenling-*-macos-universal.dmg`, open it, and drag **TenLing** into
 **Applications**. Works on Apple silicon and Intel Macs (macOS 10.15+).
 
 If macOS blocks an unsigned build: **System Settings → Privacy & Security →
@@ -157,48 +157,48 @@ Open Anyway**.
 **Debian / Ubuntu (APT repo, no account):**
 
 ```bash
-echo "deb [trusted=yes] https://sihanteng.github.io/md/apt ./" | sudo tee /etc/apt/sources.list.d/md.list
+echo "deb [trusted=yes] https://sihanteng.github.io/tenling/apt ./" | sudo tee /etc/apt/sources.list.d/tenling.list
 sudo apt update
-sudo apt install md
+sudo apt install tenling
 ```
 
 **Fedora (COPR — after you enable the project):**
 
 ```bash
-sudo dnf copr enable <your-fedora-user>/md
-sudo dnf install md
+sudo dnf copr enable <your-fedora-user>/tenling
+sudo dnf install tenling
 ```
 
 **Fedora / RHEL (static DNF repo, no account):**
 
 ```bash
-sudo tee /etc/yum.repos.d/md.repo <<'EOF'
-[md]
-name=md
-baseurl=https://sihanteng.github.io/md/rpm
+sudo tee /etc/yum.repos.d/tenling.repo <<'EOF'
+[tenling]
+name=TenLing
+baseurl=https://sihanteng.github.io/tenling/rpm
 enabled=1
 gpgcheck=0
 EOF
-sudo dnf install md
+sudo dnf install tenling
 ```
 
 **Arch (AUR):**
 
 ```bash
-yay -S md-bin
+yay -S tenling-bin
 ```
 
-**One-off packages** from [Releases](https://github.com/SihanTeng/md/releases/latest):
+**One-off packages** from [Releases](https://github.com/SihanTeng/tenling/releases/latest):
 
 ```bash
 # Debian / Ubuntu
-sudo apt install ./md-*-linux-x64.deb
+sudo apt install ./tenling-*-linux-x64.deb
 
 # Fedora / RHEL
-sudo dnf install ./md-*-linux-x64.rpm
+sudo dnf install ./tenling-*-linux-x64.rpm
 
 # Portable AppImage
-chmod +x md-*-linux-x64.AppImage && ./md-*-linux-x64.AppImage
+chmod +x tenling-*-linux-x64.AppImage && ./tenling-*-linux-x64.AppImage
 ```
 
 ### Windows
@@ -206,10 +206,10 @@ chmod +x md-*-linux-x64.AppImage && ./md-*-linux-x64.AppImage
 **Chocolatey:**
 
 ```powershell
-choco install md
+choco install tenling
 ```
 
-**Or** download `md-*-windows-x64.msi` and run it. If WebView2 is missing, the
+**Or** download `tenling-*-windows-x64.msi` and run it. If WebView2 is missing, the
 installer can fetch it for you.
 
 If SmartScreen warns about an unsigned build, choose **More info → Run anyway**
@@ -220,12 +220,12 @@ documented in [docs/distribution.md](docs/distribution.md).
 
 ## Getting started
 
-1. Open **md**
+1. Open **TenLing**
 2. Choose **New Document**, **Open File…**, or **Open Folder…**
 3. Write with the toolbar, or use shortcuts below
 4. Press **⌘⇧P** (Mac) or **Ctrl+Shift+P** (Windows/Linux) to present
 
-Your document is a normal Markdown file. Save it anywhere; open it later in md
+Your document is a normal Markdown file. Save it anywhere; open it later in TenLing
 or any other editor.
 
 ## Keyboard shortcuts
@@ -246,21 +246,21 @@ conventions while the editor is focused.
 
 ## Updating
 
-md checks for updates when it launches. You can also use **File → Check for
+TenLing checks for updates when it launches. You can also use **File → Check for
 Updates…**.
 
 | Install method | How updates arrive |
 | --- | --- |
 | macOS (DMG or Homebrew), Windows (MSI / Chocolatey), Linux (AppImage) | In-app, signed download from GitHub Releases |
-| Linux APT / static DNF / COPR | `apt` / `dnf upgrade md` |
-| AUR (`md-bin`) | `yay -Syu` (rebuilds from new AppImage) |
+| Linux APT / static DNF / COPR | `apt` / `dnf upgrade tenling` |
+| AUR (`tenling-bin`) | `yay -Syu` (rebuilds from new AppImage) |
 
 ## Contributing
 
 Bug reports, ideas, and pull requests are welcome.
 
 - Please read the [**Code of Conduct**](CODE_OF_CONDUCT.md) before participating
-- Open an [issue](https://github.com/SihanTeng/md/issues) for bugs or feature ideas
+- Open an [issue](https://github.com/SihanTeng/tenling/issues) for bugs or feature ideas
 - Prefer small, focused PRs with a short description of *why*
 
 ### Develop from source
@@ -305,5 +305,5 @@ Built with [Tauri](https://tauri.app), [TipTap](https://tiptap.dev), React, and
 ---
 
 <p align="center">
-  <sub>Made for people who write in Markdown and want a quieter desktop.</sub>
+  <sub>TenLing — made for people who write in Markdown and want a quieter desktop.</sub>
 </p>

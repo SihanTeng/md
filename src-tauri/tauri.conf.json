@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "md",
-  "version": "0.3.0",
-  "identifier": "com.md.app",
+  "productName": "TenLing",
+  "version": "0.3.1",
+  "identifier": "com.tenling.app",
   "build": {
     "beforeDevCommand": "bun run dev:web",
     "devUrl": "http://localhost:1520",
@@ -13,7 +13,7 @@
     "enableGTKAppId": true,
     "windows": [
       {
-        "title": "md",
+        "title": "TenLing",
         "width": 1100,
         "height": 720,
         "minWidth": 720,
@@ -44,10 +44,10 @@
     ],
     "createUpdaterArtifacts": true,
     "category": "Productivity",
-    "shortDescription": "Markdown viewer and editor",
-    "longDescription": "A calm, cross-platform markdown viewer and editor with WYSIWYG editing and present mode.",
-    "copyright": "Copyright © md contributors",
-    "publisher": "md",
+    "shortDescription": "TenLing — Markdown viewer and editor",
+    "longDescription": "TenLing is a calm, cross-platform Markdown viewer and editor with WYSIWYG editing and present mode.",
+    "copyright": "Copyright © TenLing contributors",
+    "publisher": "Brighteng",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -92,7 +92,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY5QTVEMTQ5RTlBODc0QjgKUldTNGRLanBTZEdsK2I4NDBTdDUyeFF4dEF5MjBLL20xWVB3SWJic3pmeGo2b2huUk5NbThuWkoK",
       "endpoints": [
-        "https://github.com/SihanTeng/md/releases/latest/download/latest.json"
+        "https://github.com/SihanTeng/tenling/releases/latest/download/latest.json"
       ]
     }
   }
