@@ -19,20 +19,29 @@ export default defineConfig(async () => ({
     exclude: ['**/node_modules/**', '**/dist/**', '**/ref/**'],
   },
 
-  // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
+  // Vite options for Tauri: desktop HMR must hit localhost explicitly.
+  // `host: false` only binds the loopback interface but leaves HMR client config
+  // ambiguous for WebKitGTK, so desktop reloads never connect.
   clearScreen: false,
   server: {
     port: 1520,
     strictPort: true,
-    host: host || false,
+    host: host || 'localhost',
     hmr: host
       ? {
+          // Physical device / remote (TAURI_DEV_HOST)
           protocol: 'ws',
           host,
           port: 1521,
         }
-      : undefined,
+      : {
+          // Desktop webview: same host/port as the dev server
+          protocol: 'ws',
+          host: 'localhost',
+          port: 1520,
+        },
     watch: {
+      // Never let Vite restart the whole graph when Rust rebuilds
       ignored: ['**/src-tauri/**'],
     },
   },
