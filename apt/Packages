@@ -1,14 +1,14 @@
 Package: ten-ling
-Version: 0.3.1
+Version: 0.3.2
 Architecture: amd64
 Maintainer: SihanTeng
-Installed-Size: 20146
+Installed-Size: 20585
 Depends: libwebkit2gtk-4.1-0, libgtk-3-0
-Filename: ./tenling_0.3.1_amd64.deb
-Size: 6462266
-MD5sum: f60d0fc2803e9815293848c3836c572f
-SHA1: dcd039a9139cbf392d9b0f5a8bdc3aff049c5efd
-SHA256: fa5f69e8bae7cc49bd82c5cb74e06a015975f01424a9ba46a56cf3bf78ca51f0
+Filename: ./tenling_0.3.2_amd64.deb
+Size: 6906134
+MD5sum: 473deef03c95138e632fef7eec8e29be
+SHA1: db1f7748ad73319d886e261aee2a6c0994a29cc7
+SHA256: 4e7acb4debd9c8b00a5754d0125275e5aa6dd3af1d14114ff94b4bc71efec2c9
 Priority: optional
 Description: TenLing — Markdown viewer and editor
  TenLing is a calm, cross-platform Markdown viewer and editor with WYSIWYG editing and present mode.
