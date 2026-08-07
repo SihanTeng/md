@@ -102,10 +102,19 @@ function Install-TenLing {
     $msiPath = Join-Path $tmpDir $asset.name
 
     try {
-        Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $msiPath -UseBasicParsing -UserAgent $UserAgent
+        $downloadUrl = $asset.browser_download_url
+        if (-not $downloadUrl) {
+            $downloadUrl = "https://github.com/$Repo/releases/download/$tag/$($asset.name)"
+        }
+        Invoke-WebRequest -Uri $downloadUrl -OutFile $msiPath -UseBasicParsing -UserAgent $UserAgent
     }
     catch {
         Write-Err "download failed: $_"
+    }
+
+    $size = (Get-Item $msiPath).Length
+    if ($size -lt 100000) {
+        Write-Err "download too small ($size bytes) — expected MSI from release $tag"
     }
 
     Write-Info 'running MSI installer (may prompt for elevation)…'

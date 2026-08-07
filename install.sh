@@ -93,39 +93,46 @@ get_release() {
   info "release ${TAG}"
 }
 
+# Stable GitHub release download URL (do not scrape API asset JSON — minified
+# payloads and nested https:// fields made the old parser pick API/user URLs).
 asset_url() {
   local want="$1"
-  local suffix="$2"
-  local url
+  printf '%s' "${DOWNLOADS}/${TAG}/${want}"
+}
 
-  url="$(printf '%s' "$RELEASE_JSON" \
-    | tr '{' '\n' \
-    | grep -F "\"name\": \"${want}\"" \
-    | grep -oE 'https://[^"]+' \
-    | head -1)" || true
+# True if the remote URL exists (HTTP 2xx/3xx after redirects).
+url_ok() {
+  local code
+  code="$(curl -fsSIL -o /dev/null -w '%{http_code}' -A 'tenling-install' "$1" 2>/dev/null || true)"
+  [[ "$code" =~ ^[23][0-9][0-9]$ ]]
+}
 
-  if [[ -z "$url" ]]; then
-    url="$(printf '%s' "$RELEASE_JSON" \
-      | tr '{' '\n' \
-      | grep -F "browser_download_url" \
-      | grep -iE "${suffix}\"" \
-      | grep -oE 'https://[^"]+' \
-      | head -1)" || true
-  fi
-
-  if [[ -z "$url" && -n "$want" ]]; then
-    url="${DOWNLOADS}/${TAG}/${want}"
-  fi
-
-  printf '%s' "$url"
+# Resolve the first existing asset name from a candidate list; prints name\turl.
+resolve_asset() {
+  local name url
+  for name in "$@"; do
+    url="$(asset_url "$name")"
+    if url_ok "$url"; then
+      printf '%s\t%s\n' "$name" "$url"
+      return 0
+    fi
+  done
+  return 1
 }
 
 download() {
   local url="$1" out="$2"
+  local min_bytes="${3:-1024}"
   [[ -n "$url" ]] || error "no download URL for this platform"
   info "downloading $(basename "$out")…"
-  curl -fsSL --retry 3 --retry-delay 1 -o "$out" "$url" \
+  curl -fsSL --retry 3 --retry-delay 1 -A 'tenling-install' -o "$out" "$url" \
     || error "download failed: $url"
+
+  local size
+  size="$(wc -c < "$out" | tr -d ' ')"
+  if [[ "$size" -lt "$min_bytes" ]]; then
+    error "download too small (${size} bytes) — expected a release asset from ${url}. Got: $(head -c 120 "$out" | tr '\n' ' ')"
+  fi
 }
 
 # --- installers -------------------------------------------------------------
@@ -134,20 +141,20 @@ install_macos() {
   need_cmd hdiutil
   need_cmd curl
 
-  local name="tenling-${VERSION}-macos-universal.dmg"
-  local url
-  url="$(asset_url "$name" '\.dmg')"
-  if ! curl -fsSIL "$url" >/dev/null 2>&1; then
-    name="tenling_${VERSION}_universal.dmg"
-    url="${DOWNLOADS}/${TAG}/${name}"
-  fi
+  local name url resolved
+  resolved="$(resolve_asset \
+    "tenling-${VERSION}-macos-universal.dmg" \
+    "tenling_${VERSION}_universal.dmg")" \
+    || error "no macOS DMG found for ${TAG}"
+  name="${resolved%%$'\t'*}"
+  url="${resolved#*$'\t'}"
 
   local tmp dmg mount
   tmp="$(mktemp -d)"
   # shellcheck disable=SC2064
   trap "rm -rf '$tmp'" EXIT
   dmg="${tmp}/${name}"
-  download "$url" "$dmg"
+  download "$url" "$dmg" 1000000
 
   info "mounting DMG…"
   mount="$(hdiutil attach -nobrowse -readonly "$dmg" | awk 'END{print $NF}')"
@@ -200,20 +207,25 @@ install_linux() {
 
 install_linux_appimage() {
   local bindir="$1"
-  local name="tenling-${VERSION}-linux-x64.AppImage"
-  local url
-  url="$(asset_url "$name" '\.AppImage')"
-  if ! curl -fsSIL "$url" >/dev/null 2>&1; then
-    name="tenling_${VERSION}_amd64.AppImage"
-    url="${DOWNLOADS}/${TAG}/${name}"
-  fi
+  local name url resolved
+  resolved="$(resolve_asset \
+    "tenling-${VERSION}-linux-x64.AppImage" \
+    "tenling_${VERSION}_amd64.AppImage")" \
+    || error "no Linux AppImage found for ${TAG}"
+  name="${resolved%%$'\t'*}"
+  url="${resolved#*$'\t'}"
 
   local tmp out
   tmp="$(mktemp -d)"
   # shellcheck disable=SC2064
   trap "rm -rf '$tmp'" EXIT
   out="${tmp}/${name}"
-  download "$url" "$out"
+  # AppImages are tens of MB; reject tiny/corrupt payloads (was a JSON scrape bug).
+  download "$url" "$out" 1000000
+  # ELF magic (AppImage is an ELF executable)
+  if ! head -c 4 "$out" | grep -q $'\x7fELF'; then
+    error "downloaded file is not an AppImage/ELF binary (got $(file -b "$out"))"
+  fi
   chmod +x "$out"
 
   local dest="${bindir}/tenling"
@@ -255,9 +267,9 @@ EOF
 install_linux_deb() {
   local name="tenling-${VERSION}-linux-x64.deb"
   local url
-  url="$(asset_url "$name" '\.deb')"
+  url="$(asset_url "$name")"
   local tmp="${TMPDIR:-/tmp}/tenling-install-$$.deb"
-  download "$url" "$tmp"
+  download "$url" "$tmp" 100000
   info "installing deb (needs root)…"
   if [[ "$(id -u)" -eq 0 ]]; then
     dpkg -i "$tmp" || apt-get install -f -y
@@ -272,9 +284,9 @@ install_linux_deb() {
 install_linux_rpm() {
   local name="tenling-${VERSION}-linux-x64.rpm"
   local url
-  url="$(asset_url "$name" '\.rpm')"
+  url="$(asset_url "$name")"
   local tmp="${TMPDIR:-/tmp}/tenling-install-$$.rpm"
-  download "$url" "$tmp"
+  download "$url" "$tmp" 100000
   info "installing rpm (needs root)…"
   if command -v dnf >/dev/null 2>&1; then
     if [[ "$(id -u)" -eq 0 ]]; then dnf install -y "$tmp"; else sudo dnf install -y "$tmp"; fi
