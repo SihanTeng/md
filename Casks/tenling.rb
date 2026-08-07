@@ -3,7 +3,7 @@
 # on every release via scripts/update-homebrew-cask.sh.
 cask "tenling" do
   version "0.3.1"
-  sha256 "329cff90de726a404235dff0570242c962fff11fd2050c0793f19d231c70d4ff"
+  sha256 "da6c750374c8ae3b0b4457bddc4267356d52cd26cd09514d620f6a81bd89749c"
 
   url "https://github.com/SihanTeng/tenling/releases/download/v#{version}/tenling-#{version}-macos-universal.dmg"
   name "TenLing"
