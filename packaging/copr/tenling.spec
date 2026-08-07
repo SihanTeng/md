@@ -2,7 +2,7 @@
 # Version is rewritten by scripts/update-copr-spec.sh on release.
 
 Name:           tenling
-Version:        0.3.1
+Version:        0.3.2
 Release:        1%{?dist}
 Summary:        Calm, cross-platform Markdown viewer and editor
 
@@ -10,6 +10,7 @@ License:        LicenseRef-Unknown
 URL:            https://github.com/SihanTeng/tenling
 Source0:        tenling-%{version}-linux-x64.AppImage
 Source1:        tenling.desktop
+Source2:        tenling.png
 
 BuildArch:      x86_64
 # AppImage is a prebuilt payload — no compile step.
@@ -33,6 +34,7 @@ GitHub Releases as /usr/bin/tenling.
 %install
 install -Dm755 "tenling-%{version}-linux-x64.AppImage" %{buildroot}%{_bindir}/tenling
 install -Dm644 tenling.desktop %{buildroot}%{_datadir}/applications/tenling.desktop
+install -Dm644 tenling.png %{buildroot}%{_datadir}/icons/hicolor/512x512/apps/tenling.png
 
 %check
 desktop-file-validate %{buildroot}%{_datadir}/applications/tenling.desktop || true
@@ -40,6 +42,7 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/tenling.desktop || tr
 %files
 %{_bindir}/tenling
 %{_datadir}/applications/tenling.desktop
+%{_datadir}/icons/hicolor/512x512/apps/tenling.png
 
 %changelog
 * Fri Aug 07 2026 TenLing contributors <noreply@users.noreply.github.com> - 0.3.0-1

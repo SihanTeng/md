@@ -7,7 +7,7 @@
 #
 # shellcheck disable=SC2034
 pkgname=tenling-bin
-pkgver=0.3.1
+pkgver=0.3.2
 pkgrel=1
 pkgdesc='TenLing — calm, cross-platform Markdown viewer and editor'
 arch=('x86_64')
@@ -21,8 +21,10 @@ options=('!strip' '!debug')
 source=(
   "tenling-${pkgver}-linux-x64.AppImage::https://github.com/SihanTeng/tenling/releases/download/v${pkgver}/tenling-${pkgver}-linux-x64.AppImage"
   "tenling.desktop"
+  "tenling.png"
 )
 sha256sums=(
+  'SKIP'
   'SKIP'
   'SKIP'
 )
@@ -30,4 +32,6 @@ sha256sums=(
 package() {
   install -Dm755 "tenling-${pkgver}-linux-x64.AppImage" "${pkgdir}/usr/bin/tenling"
   install -Dm644 tenling.desktop "${pkgdir}/usr/share/applications/tenling.desktop"
+  # FreeDesktop theme icon (AppImage alone does not register Icon=tenling)
+  install -Dm644 tenling.png "${pkgdir}/usr/share/icons/hicolor/512x512/apps/tenling.png"
 }

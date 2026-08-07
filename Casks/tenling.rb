@@ -2,7 +2,7 @@
 # workflow renders it (version + sha256) into the SihanTeng/homebrew-tenling tap
 # on every release via scripts/update-homebrew-cask.sh.
 cask "tenling" do
-  version "0.3.1"
+  version "0.3.2"
   sha256 "da6c750374c8ae3b0b4457bddc4267356d52cd26cd09514d620f6a81bd89749c"
 
   url "https://github.com/SihanTeng/tenling/releases/download/v#{version}/tenling-#{version}-macos-universal.dmg"

@@ -243,6 +243,8 @@ install_linux_appimage() {
     fi
   fi
 
+  install_linux_icons "$dest"
+
   local apps="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
   mkdir -p "$apps"
   cat > "${apps}/tenling.desktop" <<EOF
@@ -259,9 +261,76 @@ MimeType=text/markdown;text/x-markdown;
 StartupWMClass=tenling
 Keywords=markdown;editor;notes;tenling;
 EOF
+  if command -v update-desktop-database >/dev/null 2>&1; then
+    update-desktop-database "$apps" 2>/dev/null || true
+  fi
   info "desktop entry: ${apps}/tenling.desktop"
 
   printf '\n%sRun:%s\n  tenling\n\n' "$CYAN" "$NC"
+}
+
+# FreeDesktop icons so rofi / menus / docks resolve Icon=tenling.
+# Prefer brand art from GitHub main (latest logo); fall back to AppImage extract.
+install_linux_icons() {
+  local appimage="${1:-}"
+  local data="${XDG_DATA_HOME:-$HOME/.local/share}"
+  local hicolor="${data}/icons/hicolor"
+  local icon_tmp extr found
+  icon_tmp="$(mktemp)"
+  extr="$(mktemp -d)"
+  cleanup_icons() { rm -f "$icon_tmp"; rm -rf "$extr"; }
+  # Do not clobber the caller's EXIT trap — clean up on return only.
+  # shellcheck disable=SC2064
+  trap cleanup_icons RETURN
+
+  local icon_url="https://raw.githubusercontent.com/${REPO}/main/public/icon.png"
+  if curl -fsSL -A 'tenling-install' -o "$icon_tmp" "$icon_url" \
+    && [[ "$(wc -c < "$icon_tmp" | tr -d ' ')" -gt 1000 ]]; then
+    info "installing icon theme (from ${REPO})…"
+  elif [[ -n "$appimage" && -x "$appimage" ]]; then
+    info "installing icon theme (from AppImage)…"
+    (
+      cd "$extr"
+      "$appimage" --appimage-extract 'usr/share/icons/hicolor/**/*.png' >/dev/null 2>&1 || true
+    )
+    found="$(find "$extr/squashfs-root" -type f -name 'tenling.png' 2>/dev/null | awk '{ print length, $0 }' | sort -n | tail -1 | cut -d' ' -f2- || true)"
+    if [[ -n "$found" && -f "$found" ]]; then
+      cp -f "$found" "$icon_tmp"
+    else
+      warn "could not obtain TenLing icon — menu may show a generic symbol"
+      return 0
+    fi
+  else
+    warn "could not obtain TenLing icon — menu may show a generic symbol"
+    return 0
+  fi
+
+  if command -v python3 >/dev/null 2>&1 && python3 -c 'from PIL import Image' 2>/dev/null; then
+    python3 - "$icon_tmp" "$hicolor" <<'PY'
+import sys
+from pathlib import Path
+from PIL import Image
+src, base = Path(sys.argv[1]), Path(sys.argv[2])
+im = Image.open(src).convert("RGBA")
+for size in (32, 48, 64, 128, 256, 512):
+    d = base / f"{size}x{size}" / "apps"
+    d.mkdir(parents=True, exist_ok=True)
+    im.resize((size, size), Image.Resampling.LANCZOS).save(d / "tenling.png")
+PY
+  elif command -v convert >/dev/null 2>&1; then
+    local size
+    for size in 32 48 64 128 256 512; do
+      mkdir -p "${hicolor}/${size}x${size}/apps"
+      convert "$icon_tmp" -resize "${size}x${size}" "${hicolor}/${size}x${size}/apps/tenling.png"
+    done
+  else
+    mkdir -p "${hicolor}/512x512/apps"
+    cp -f "$icon_tmp" "${hicolor}/512x512/apps/tenling.png"
+  fi
+
+  if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+    gtk-update-icon-cache -f -t "$hicolor" 2>/dev/null || true
+  fi
 }
 
 install_linux_deb() {

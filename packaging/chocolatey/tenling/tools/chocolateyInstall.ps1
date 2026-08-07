@@ -3,7 +3,7 @@ $toolsDir   = "$(Split-Path -parent $MyInvocation.MyCommand.Definition)"
 $packageName = $env:ChocolateyPackageName
 
 # These two values are rewritten by scripts/update-chocolatey-package.sh on each release.
-$softwareVersion = '0.3.1'
+$softwareVersion = '0.3.2'
 $checksum64      = 'REPLACE_WITH_MSI_SHA256'
 
 $packageArgs = @{

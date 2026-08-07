@@ -45,6 +45,10 @@ trap 'rm -rf "$WORKDIR"' EXIT
 
 cp -f "$APPIMAGE" "$WORKDIR/SOURCES/tenling-${VERSION}-linux-x64.AppImage"
 cp -f "$DESKTOP" "$WORKDIR/SOURCES/tenling.desktop"
+ICON="$ROOT/packaging/copr/tenling.png"
+if [[ -f "$ICON" ]]; then
+  cp -f "$ICON" "$WORKDIR/SOURCES/tenling.png"
+fi
 cp -f "$SPEC" "$WORKDIR/SPECS/tenling.spec"
 
 RPMSRC="$WORKDIR"
