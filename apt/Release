@@ -1,8 +1,8 @@
-Origin: md
-Label: md
+Origin: tenling
+Label: tenling
 Suite: stable
 Codename: stable
 Architectures: amd64
 Components: main
-Description: md APT repository (GitHub Pages)
-Date: Tue, 04 Aug 2026 03:27:49 +0000
+Description: TenLing APT repository (GitHub Pages)
+Date: Fri, 07 Aug 2026 06:36:43 +0000

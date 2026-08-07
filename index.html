@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>md package repositories</title>
+  <title>TenLing package repositories</title>
   <style>
     body { font-family: system-ui, sans-serif; max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
     code, pre { background: #f4f4f5; border-radius: 6px; }
@@ -13,24 +13,24 @@
   </style>
 </head>
 <body>
-  <h1>md package repositories</h1>
-  <p>Static APT and DNF repos for <a href="https://github.com/SihanTeng/md">md</a>, published from GitHub Releases (no third-party account). Current version: <strong>0.3.0</strong>.</p>
+  <h1>TenLing package repositories</h1>
+  <p>Static APT and DNF repos for <a href="https://github.com/SihanTeng/tenling">TenLing</a>, published from GitHub Releases (no third-party account). Current version: <strong>0.3.1</strong>.</p>
 
   <h2>Debian / Ubuntu (APT)</h2>
-  <pre>echo "deb [trusted=yes] https://sihanteng.github.io/md/apt ./" | sudo tee /etc/apt/sources.list.d/md.list
+  <pre>echo "deb [trusted=yes] https://sihanteng.github.io/tenling/apt ./" | sudo tee /etc/apt/sources.list.d/tenling.list
 sudo apt update
-sudo apt install md</pre>
+sudo apt install tenling</pre>
 
   <h2>Fedora / RHEL (DNF)</h2>
-  <pre>sudo tee /etc/yum.repos.d/md.repo &lt;&lt;'EOF'
-[md]
-name=md
-baseurl=https://sihanteng.github.io/md/rpm
+  <pre>sudo tee /etc/yum.repos.d/tenling.repo &lt;&lt;'EOF'
+[tenling]
+name=TenLing
+baseurl=https://sihanteng.github.io/tenling/rpm
 enabled=1
 gpgcheck=0
 EOF
-sudo dnf install md</pre>
+sudo dnf install tenling</pre>
 
-  <p><a href="https://sihanteng.github.io/md/apt/">Browse APT</a> · <a href="https://sihanteng.github.io/md/rpm/">Browse RPM</a> · <a href="https://github.com/SihanTeng/md/releases">All releases</a></p>
+  <p><a href="https://sihanteng.github.io/tenling/apt/">Browse APT</a> · <a href="https://sihanteng.github.io/tenling/rpm/">Browse RPM</a> · <a href="https://github.com/SihanTeng/tenling/releases">All releases</a></p>
 </body>
 </html>
